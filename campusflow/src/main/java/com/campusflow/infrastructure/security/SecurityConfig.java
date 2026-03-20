@@ -33,6 +33,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/events").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/events/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/events/search").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/study-groups").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/study-groups/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .userDetailsService(userDetailsService)

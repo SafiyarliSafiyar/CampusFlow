@@ -1,26 +1,30 @@
 package com.campusflow.presentation.rest.user;
 
+import com.campusflow.application.user.dto.AssignRoleInput;
 import com.campusflow.application.user.dto.LoginResult;
 import com.campusflow.application.user.dto.LoginUserInput;
 import com.campusflow.application.user.dto.RegisterUserInput;
 import com.campusflow.application.user.dto.UpdateProfileInput;
+import com.campusflow.application.user.usecase.AssignRoleUseCase;
 import com.campusflow.application.user.usecase.LoginUserUseCase;
 import com.campusflow.application.user.usecase.RegisterUserUseCase;
 import com.campusflow.application.user.usecase.UpdateProfileUseCase;
 import com.campusflow.domain.user.model.User;
-import com.campusflow.domain.user.port.UserRepositoryPort;
 import jakarta.validation.Valid;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -29,7 +33,7 @@ public class UserController {
     private final RegisterUserUseCase registerUserUseCase;
     private final LoginUserUseCase loginUserUseCase;
     private final UpdateProfileUseCase updateProfileUseCase;
-    private final UserRepositoryPort userRepositoryPort;
+    private final AssignRoleUseCase assignRoleUseCase;
 
     @PostMapping("/register")
     public ResponseEntity<RegisterUserResponse> register(@RequestBody @Valid RegisterUserRequest request) {
@@ -76,16 +80,40 @@ public class UserController {
             throw new AccessDeniedException("Authentication required");
         }
 
-        String email = authentication.getName();
-        User currentUser = userRepositoryPort.findByEmail(email)
-                .orElseThrow(() -> new AccessDeniedException("Authenticated user not found"));
+        Object details = authentication.getDetails();
+        if (!(details instanceof Map<?, ?> detailsMap)) {
+            throw new AccessDeniedException("User id is missing from authentication context");
+        }
+        Object userIdValue = detailsMap.get("userId");
+        if (!(userIdValue instanceof Number number)) {
+            throw new AccessDeniedException("User id is missing from authentication context");
+        }
 
         User updatedUser = updateProfileUseCase.updateProfile(
-                currentUser.getId(),
+                number.longValue(),
                 new UpdateProfileInput(request.getUsername())
         );
 
         UserResponse response = new UserResponse(
+                updatedUser.getId(),
+                updatedUser.getUsername(),
+                updatedUser.getEmail(),
+                updatedUser.getRole().name(),
+                updatedUser.getCreatedAt()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/role")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<RegisterUserResponse> assignRole(
+            @PathVariable Long id,
+            @RequestBody @Valid AssignRoleRequest request
+    ) {
+        User updatedUser = assignRoleUseCase.assignRole(new AssignRoleInput(id, request.getRole()));
+
+        RegisterUserResponse response = new RegisterUserResponse(
                 updatedUser.getId(),
                 updatedUser.getUsername(),
                 updatedUser.getEmail(),

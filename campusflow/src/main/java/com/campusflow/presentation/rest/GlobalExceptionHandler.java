@@ -5,6 +5,13 @@ import com.campusflow.domain.event.exception.EventCancelledException;
 import com.campusflow.domain.event.exception.EventFullException;
 import com.campusflow.domain.event.exception.EventNotFoundException;
 import com.campusflow.domain.event.exception.RsvpNotFoundException;
+import com.campusflow.domain.studygroup.exception.AlreadyMemberException;
+import com.campusflow.domain.studygroup.exception.AlreadyRequestedException;
+import com.campusflow.domain.studygroup.exception.JoinRequestNotFoundException;
+import com.campusflow.domain.studygroup.exception.MemberNotFoundException;
+import com.campusflow.domain.studygroup.exception.NotGroupCreatorException;
+import com.campusflow.domain.studygroup.exception.StudyGroupFullException;
+import com.campusflow.domain.studygroup.exception.StudyGroupNotFoundException;
 import com.campusflow.domain.user.exception.EmailAlreadyExistsException;
 import com.campusflow.domain.user.exception.InvalidCredentialsException;
 import com.campusflow.domain.user.exception.UserNotFoundException;
@@ -64,6 +71,41 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RsvpNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleRsvpNotFound(RsvpNotFoundException ex) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(StudyGroupNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleStudyGroupNotFound(StudyGroupNotFoundException ex) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(StudyGroupFullException.class)
+    public ResponseEntity<Map<String, Object>> handleStudyGroupFull(StudyGroupFullException ex) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(AlreadyMemberException.class)
+    public ResponseEntity<Map<String, Object>> handleAlreadyMember(AlreadyMemberException ex) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(AlreadyRequestedException.class)
+    public ResponseEntity<Map<String, Object>> handleAlreadyRequested(AlreadyRequestedException ex) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(JoinRequestNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleJoinRequestNotFound(JoinRequestNotFoundException ex) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(NotGroupCreatorException.class)
+    public ResponseEntity<Map<String, Object>> handleNotGroupCreator(NotGroupCreatorException ex) {
+        return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
+    @ExceptionHandler(MemberNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleMemberNotFound(MemberNotFoundException ex) {
         return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 

@@ -10,13 +10,28 @@ import com.campusflow.application.event.usecase.CreateEventUseCase;
 import com.campusflow.application.event.usecase.GetEventsUseCase;
 import com.campusflow.application.event.usecase.RsvpEventUseCase;
 import com.campusflow.application.event.usecase.UpdateEventUseCase;
+import com.campusflow.application.studygroup.service.CreateStudyGroupService;
+import com.campusflow.application.studygroup.service.GetJoinRequestsService;
+import com.campusflow.application.studygroup.service.GetStudyGroupsService;
+import com.campusflow.application.studygroup.service.HandleJoinRequestService;
+import com.campusflow.application.studygroup.service.RemoveMemberService;
+import com.campusflow.application.studygroup.service.RequestJoinService;
+import com.campusflow.application.studygroup.usecase.CreateStudyGroupUseCase;
+import com.campusflow.application.studygroup.usecase.GetJoinRequestsUseCase;
+import com.campusflow.application.studygroup.usecase.GetStudyGroupsUseCase;
+import com.campusflow.application.studygroup.usecase.HandleJoinRequestUseCase;
+import com.campusflow.application.studygroup.usecase.RemoveMemberUseCase;
+import com.campusflow.application.studygroup.usecase.RequestJoinUseCase;
+import com.campusflow.application.user.service.AssignRoleService;
 import com.campusflow.application.user.service.LoginUserService;
 import com.campusflow.application.user.service.RegisterUserService;
 import com.campusflow.application.user.service.UpdateProfileService;
+import com.campusflow.application.user.usecase.AssignRoleUseCase;
 import com.campusflow.application.user.usecase.LoginUserUseCase;
 import com.campusflow.application.user.usecase.RegisterUserUseCase;
 import com.campusflow.application.user.usecase.UpdateProfileUseCase;
 import com.campusflow.domain.event.port.EventRepositoryPort;
+import com.campusflow.domain.studygroup.port.StudyGroupRepositoryPort;
 import com.campusflow.domain.user.port.TokenProviderPort;
 import com.campusflow.domain.user.port.UserRepositoryPort;
 import org.springframework.context.annotation.Bean;
@@ -54,6 +69,11 @@ public class AppConfig {
     }
 
     @Bean
+    public AssignRoleUseCase assignRoleUseCase(UserRepositoryPort userRepositoryPort) {
+        return new AssignRoleService(userRepositoryPort);
+    }
+
+    @Bean
     public CreateEventUseCase createEventUseCase(EventRepositoryPort eventRepositoryPort) {
         return new CreateEventService(eventRepositoryPort);
     }
@@ -76,5 +96,35 @@ public class AppConfig {
     @Bean
     public RsvpEventUseCase rsvpEventUseCase(EventRepositoryPort eventRepositoryPort) {
         return new RsvpEventService(eventRepositoryPort);
+    }
+
+    @Bean
+    public CreateStudyGroupUseCase createStudyGroupUseCase(StudyGroupRepositoryPort studyGroupRepositoryPort) {
+        return new CreateStudyGroupService(studyGroupRepositoryPort);
+    }
+
+    @Bean
+    public GetStudyGroupsUseCase getStudyGroupsUseCase(StudyGroupRepositoryPort studyGroupRepositoryPort) {
+        return new GetStudyGroupsService(studyGroupRepositoryPort);
+    }
+
+    @Bean
+    public RequestJoinUseCase requestJoinUseCase(StudyGroupRepositoryPort studyGroupRepositoryPort) {
+        return new RequestJoinService(studyGroupRepositoryPort);
+    }
+
+    @Bean
+    public HandleJoinRequestUseCase handleJoinRequestUseCase(StudyGroupRepositoryPort studyGroupRepositoryPort) {
+        return new HandleJoinRequestService(studyGroupRepositoryPort);
+    }
+
+    @Bean
+    public RemoveMemberUseCase removeMemberUseCase(StudyGroupRepositoryPort studyGroupRepositoryPort) {
+        return new RemoveMemberService(studyGroupRepositoryPort);
+    }
+
+    @Bean
+    public GetJoinRequestsUseCase getJoinRequestsUseCase(StudyGroupRepositoryPort studyGroupRepositoryPort) {
+        return new GetJoinRequestsService(studyGroupRepositoryPort);
     }
 }

@@ -6,8 +6,9 @@ import com.campusflow.domain.user.exception.EmailAlreadyExistsException;
 import com.campusflow.domain.user.model.User;
 import com.campusflow.domain.user.model.UserRole;
 import com.campusflow.domain.user.port.UserRepositoryPort;
-import java.time.LocalDateTime;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.time.LocalDateTime;
 
 public class RegisterUserService implements RegisterUserUseCase {
     private final UserRepositoryPort userRepositoryPort;
