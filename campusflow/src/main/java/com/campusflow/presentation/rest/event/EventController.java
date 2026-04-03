@@ -11,9 +11,6 @@ import com.campusflow.application.event.usecase.UpdateEventUseCase;
 import com.campusflow.domain.event.exception.EventNotFoundException;
 import jakarta.validation.Valid;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -127,20 +124,17 @@ public class EventController {
     }
 
     private Long extractUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new AccessDeniedException("Authentication required");
         }
-
         Object details = authentication.getDetails();
-        if (details instanceof Map<?, ?> detailsMap) {
-            Object userIdValue = detailsMap.get("userId");
-            if (userIdValue instanceof Number number) {
-                return number.longValue();
-            }
+        if (details instanceof Long userId) {
+            return userId;
         }
-
-        throw new AccessDeniedException("User id is missing from authentication context");
+        throw new AccessDeniedException(
+                "User id is missing from authentication context");
     }
 
     private boolean isModeratorOrAdmin() {

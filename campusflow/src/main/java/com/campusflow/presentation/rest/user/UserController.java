@@ -11,7 +11,6 @@ import com.campusflow.application.user.usecase.RegisterUserUseCase;
 import com.campusflow.application.user.usecase.UpdateProfileUseCase;
 import com.campusflow.domain.user.model.User;
 import jakarta.validation.Valid;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -74,23 +73,8 @@ public class UserController {
 
     @PutMapping("/profile")
     public ResponseEntity<UserResponse> updateProfile(@RequestBody @Valid UpdateProfileRequest request) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()
-                || "anonymousUser".equals(authentication.getPrincipal())) {
-            throw new AccessDeniedException("Authentication required");
-        }
-
-        Object details = authentication.getDetails();
-        if (!(details instanceof Map<?, ?> detailsMap)) {
-            throw new AccessDeniedException("User id is missing from authentication context");
-        }
-        Object userIdValue = detailsMap.get("userId");
-        if (!(userIdValue instanceof Number number)) {
-            throw new AccessDeniedException("User id is missing from authentication context");
-        }
-
         User updatedUser = updateProfileUseCase.updateProfile(
-                number.longValue(),
+                extractUserId(),
                 new UpdateProfileInput(request.getUsername())
         );
 
@@ -122,5 +106,19 @@ public class UserController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    private Long extractUserId() {
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new AccessDeniedException("Authentication required");
+        }
+        Object details = authentication.getDetails();
+        if (details instanceof Long userId) {
+            return userId;
+        }
+        throw new AccessDeniedException(
+                "User id is missing from authentication context");
     }
 }
