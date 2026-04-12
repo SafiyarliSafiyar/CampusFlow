@@ -3,9 +3,11 @@ package com.campusflow.application.user.service;
 import com.campusflow.application.user.dto.LoginResult;
 import com.campusflow.application.user.dto.LoginUserInput;
 import com.campusflow.application.user.usecase.LoginUserUseCase;
+import com.campusflow.domain.user.exception.EmailNotVerifiedException;
 import com.campusflow.domain.user.exception.InvalidCredentialsException;
 import com.campusflow.domain.user.exception.UserNotFoundException;
 import com.campusflow.domain.user.model.User;
+import com.campusflow.domain.user.model.VerificationStatus;
 import com.campusflow.domain.user.port.TokenProviderPort;
 import com.campusflow.domain.user.port.UserRepositoryPort;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -32,6 +34,10 @@ public class LoginUserService implements LoginUserUseCase {
 
         if (!passwordEncoder.matches(input.getRawPassword(), user.getPasswordHash())) {
             throw new InvalidCredentialsException();
+        }
+
+        if (user.getVerificationStatus() != VerificationStatus.VERIFIED) {
+            throw new EmailNotVerifiedException();
         }
 
         String token = tokenProviderPort.generateToken(user);

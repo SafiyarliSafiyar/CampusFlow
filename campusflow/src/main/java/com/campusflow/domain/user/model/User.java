@@ -14,5 +14,7 @@ public class User {
     private final String email;
     private final String passwordHash;
     private final UserRole role;
+    @Builder.Default
+    private final VerificationStatus verificationStatus = VerificationStatus.PENDING;
     private final LocalDateTime createdAt;
 }

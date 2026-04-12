@@ -24,6 +24,7 @@ public class AssignRoleService implements AssignRoleUseCase {
                 .email(existingUser.getEmail())
                 .passwordHash(existingUser.getPasswordHash())
                 .role(input.getRole())
+                .verificationStatus(existingUser.getVerificationStatus())
                 .createdAt(existingUser.getCreatedAt())
                 .build();
 

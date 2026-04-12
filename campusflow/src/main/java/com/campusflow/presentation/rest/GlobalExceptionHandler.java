@@ -16,7 +16,10 @@ import com.campusflow.domain.studygroup.exception.NotGroupCreatorException;
 import com.campusflow.domain.studygroup.exception.StudyGroupFullException;
 import com.campusflow.domain.studygroup.exception.StudyGroupNotFoundException;
 import com.campusflow.domain.user.exception.EmailAlreadyExistsException;
+import com.campusflow.domain.user.exception.EmailNotVerifiedException;
 import com.campusflow.domain.user.exception.InvalidCredentialsException;
+import com.campusflow.domain.user.exception.InvalidOtpException;
+import com.campusflow.domain.user.exception.OtpNotFoundException;
 import com.campusflow.domain.user.exception.UserNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
@@ -47,12 +50,36 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<Map<String, Object>> handleEmailNotVerified(
+            EmailNotVerifiedException ex,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleInvalidCredentials(
             InvalidCredentialsException ex,
             HttpServletRequest request
     ) {
         return buildErrorResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidOtpException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidOtp(
+            InvalidOtpException ex,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(OtpNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleOtpNotFound(
+            OtpNotFoundException ex,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

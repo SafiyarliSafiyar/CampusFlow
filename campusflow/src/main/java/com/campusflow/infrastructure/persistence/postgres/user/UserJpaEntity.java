@@ -2,6 +2,7 @@ package com.campusflow.infrastructure.persistence.postgres.user;
 
 import com.campusflow.domain.user.model.User;
 import com.campusflow.domain.user.model.UserRole;
+import com.campusflow.domain.user.model.VerificationStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -38,6 +39,10 @@ public class UserJpaEntity {
     @Column(nullable = false)
     private UserRole role;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private VerificationStatus verificationStatus = VerificationStatus.PENDING;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -48,6 +53,7 @@ public class UserJpaEntity {
                 .email(email)
                 .passwordHash(passwordHash)
                 .role(role)
+                .verificationStatus(verificationStatus)
                 .createdAt(createdAt)
                 .build();
     }
@@ -59,6 +65,7 @@ public class UserJpaEntity {
         entity.setEmail(user.getEmail());
         entity.setPasswordHash(user.getPasswordHash());
         entity.setRole(user.getRole());
+        entity.setVerificationStatus(user.getVerificationStatus());
         entity.setCreatedAt(user.getCreatedAt());
         return entity;
     }

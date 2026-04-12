@@ -5,12 +5,16 @@ import com.campusflow.application.user.dto.LoginResult;
 import com.campusflow.application.user.dto.LoginUserInput;
 import com.campusflow.application.user.dto.RegisterUserInput;
 import com.campusflow.application.user.dto.UpdateProfileInput;
+import com.campusflow.application.user.dto.VerifyOtpInput;
 import com.campusflow.application.user.usecase.AssignRoleUseCase;
 import com.campusflow.application.user.usecase.LoginUserUseCase;
 import com.campusflow.application.user.usecase.RegisterUserUseCase;
+import com.campusflow.application.user.usecase.SendOtpUseCase;
 import com.campusflow.application.user.usecase.UpdateProfileUseCase;
+import com.campusflow.application.user.usecase.VerifyOtpUseCase;
 import com.campusflow.domain.user.model.User;
 import jakarta.validation.Valid;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +37,8 @@ public class UserController {
     private final LoginUserUseCase loginUserUseCase;
     private final UpdateProfileUseCase updateProfileUseCase;
     private final AssignRoleUseCase assignRoleUseCase;
+    private final SendOtpUseCase sendOtpUseCase;
+    private final VerifyOtpUseCase verifyOtpUseCase;
 
     @PostMapping("/register")
     public ResponseEntity<RegisterUserResponse> register(@RequestBody @Valid RegisterUserRequest request) {
@@ -69,6 +75,18 @@ public class UserController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<Map<String, String>> verifyEmail(@RequestBody @Valid VerifyOtpRequest request) {
+        verifyOtpUseCase.verifyOtp(new VerifyOtpInput(request.getEmail(), request.getOtpCode()));
+        return ResponseEntity.ok(Map.of("message", "Email verified successfully"));
+    }
+
+    @PostMapping("/resend-otp")
+    public ResponseEntity<Map<String, String>> resendOtp(@RequestBody @Valid ResendOtpRequest request) {
+        sendOtpUseCase.sendOtp(request.getEmail());
+        return ResponseEntity.ok(Map.of("message", "OTP sent successfully"));
     }
 
     @PutMapping("/profile")

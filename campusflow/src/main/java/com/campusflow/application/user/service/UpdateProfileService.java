@@ -24,6 +24,7 @@ public class UpdateProfileService implements UpdateProfileUseCase {
                 .email(existingUser.getEmail())
                 .passwordHash(existingUser.getPasswordHash())
                 .role(existingUser.getRole())
+                .verificationStatus(existingUser.getVerificationStatus())
                 .createdAt(existingUser.getCreatedAt())
                 .build();
 

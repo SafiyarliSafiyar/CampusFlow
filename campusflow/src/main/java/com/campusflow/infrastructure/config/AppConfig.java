@@ -35,15 +35,21 @@ import com.campusflow.application.studygroup.usecase.RequestJoinUseCase;
 import com.campusflow.application.user.service.AssignRoleService;
 import com.campusflow.application.user.service.LoginUserService;
 import com.campusflow.application.user.service.RegisterUserService;
+import com.campusflow.application.user.service.SendOtpService;
 import com.campusflow.application.user.service.UpdateProfileService;
+import com.campusflow.application.user.service.VerifyOtpService;
 import com.campusflow.application.user.usecase.AssignRoleUseCase;
 import com.campusflow.application.user.usecase.LoginUserUseCase;
 import com.campusflow.application.user.usecase.RegisterUserUseCase;
+import com.campusflow.application.user.usecase.SendOtpUseCase;
 import com.campusflow.application.user.usecase.UpdateProfileUseCase;
+import com.campusflow.application.user.usecase.VerifyOtpUseCase;
 import com.campusflow.domain.event.port.EventRepositoryPort;
 import com.campusflow.domain.message.port.MessageRepositoryPort;
 import com.campusflow.domain.post.port.PostRepositoryPort;
 import com.campusflow.domain.studygroup.port.StudyGroupRepositoryPort;
+import com.campusflow.domain.user.port.EmailServicePort;
+import com.campusflow.domain.user.port.OtpRepositoryPort;
 import com.campusflow.domain.user.port.TokenProviderPort;
 import com.campusflow.domain.user.port.UserRepositoryPort;
 import java.util.List;
@@ -84,9 +90,10 @@ public class AppConfig {
     @Bean
     public RegisterUserUseCase registerUserUseCase(
             UserRepositoryPort userRepositoryPort,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            SendOtpUseCase sendOtpUseCase
     ) {
-        return new RegisterUserService(userRepositoryPort, passwordEncoder);
+        return new RegisterUserService(userRepositoryPort, passwordEncoder, sendOtpUseCase);
     }
 
     @Bean
@@ -106,6 +113,22 @@ public class AppConfig {
     @Bean
     public AssignRoleUseCase assignRoleUseCase(UserRepositoryPort userRepositoryPort) {
         return new AssignRoleService(userRepositoryPort);
+    }
+
+    @Bean
+    public SendOtpUseCase sendOtpUseCase(
+            OtpRepositoryPort otpRepositoryPort,
+            EmailServicePort emailServicePort
+    ) {
+        return new SendOtpService(otpRepositoryPort, emailServicePort);
+    }
+
+    @Bean
+    public VerifyOtpUseCase verifyOtpUseCase(
+            OtpRepositoryPort otpRepositoryPort,
+            UserRepositoryPort userRepositoryPort
+    ) {
+        return new VerifyOtpService(otpRepositoryPort, userRepositoryPort);
     }
 
     @Bean
