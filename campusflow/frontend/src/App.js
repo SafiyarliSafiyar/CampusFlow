@@ -64,6 +64,10 @@ const emptyAuthForm = {
   otpCode: "",
 };
 
+const emptyResetForm = {
+  email: "",
+};
+
 const emptyPostForm = {
   title: "",
   content: "",
@@ -106,10 +110,6 @@ const emptyResourceForm = {
   title: "",
   url: "",
 };
-
-function formatRole(role) {
-  return role.charAt(0) + role.slice(1).toLowerCase();
-}
 
 function formatDateTime(value) {
   if (!value) {
@@ -187,10 +187,12 @@ function readStoredJson(key, fallback) {
 
 function App() {
   const [activeView, setActiveView] = useState("auth");
+  const [authPage, setAuthPage] = useState("login");
   const [authForm, setAuthForm] = useState(emptyAuthForm);
+  const [resetForm, setResetForm] = useState(emptyResetForm);
   const [status, setStatus] = useState({
     type: "idle",
-    message: "Register, verify, or log in to start using CampusFlow.",
+    message: "Log in to start using CampusFlow.",
   });
   const [workspaceNotice, setWorkspaceNotice] = useState({
     type: "idle",
@@ -238,9 +240,6 @@ function App() {
     [group.name, group.topic, group.course, group.status],
     groupSearch,
   ));
-  const accessibleGroups = studyGroups.filter((group) =>
-    canOpenGroupChat(group, currentUser, joinStatuses));
-
   const notifications = useMemo(() => {
     if (!currentUser || !profilePreferences.notificationsEnabled) {
       return [];
@@ -563,6 +562,14 @@ function App() {
     }));
   };
 
+  const handleResetChange = (event) => {
+    const { name, value } = event.target;
+    setResetForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
   const handleFormChange = (setter) => (event) => {
     const { name, value, type, checked } = event.target;
     setter((current) => ({
@@ -598,6 +605,15 @@ function App() {
         body: payload,
         auth: false,
       });
+
+      if (mode === "verify") {
+        setAuthPage("login");
+        setAuthForm((current) => ({
+          ...current,
+          otpCode: "",
+        }));
+      }
+
       setStatus({
         type: "success",
         message: data?.message
@@ -646,9 +662,10 @@ function App() {
       });
 
       if (mode === "register") {
+        setAuthPage("verify");
         setStatus({
           type: "success",
-          message: `Registered ${data?.email || authForm.email}. Check your inbox for the OTP and verify before logging in.`,
+          message: `Registered ${data?.email || authForm.email}. Enter the OTP on the verification page to activate your account.`,
         });
         return;
       }
@@ -696,6 +713,7 @@ function App() {
     setMessageForm(emptyMessageForm);
     setRsvpStateByEvent({});
     setActiveView("auth");
+    setAuthPage("login");
     setWorkspaceNotice({
       type: "idle",
       message: "You are signed out.",
@@ -715,6 +733,14 @@ function App() {
       message: `Filled ${account.label.toLowerCase()} credentials for local testing.`,
     });
     setActiveView("auth");
+    setAuthPage("login");
+  };
+
+  const handleForgotPasswordRequest = () => {
+    setStatus({
+      type: "idle",
+      message: "Forgot password page is ready on the frontend, but sending recovery emails needs backend support. Right now only login, register, and OTP verification are connected.",
+    });
   };
 
   const handleSaveProfile = async () => {
@@ -1084,54 +1110,108 @@ function App() {
 
   const renderSummary = () => (
     <div className="summary-grid">
-      <article className="summary-card summary-rose">
-        <span>Feed items</span>
+      <button
+        type="button"
+        className="summary-card summary-rose summary-button"
+        onClick={() => setActiveView("feed")}
+      >
+        <span>Feed</span>
         <strong>{feedPosts.length}</strong>
-      </article>
-      <article className="summary-card summary-blush">
-        <span>Upcoming events</span>
+        <small>Open community posts</small>
+      </button>
+      <button
+        type="button"
+        className="summary-card summary-blush summary-button"
+        onClick={() => setActiveView("events")}
+      >
+        <span>Events</span>
         <strong>{events.length}</strong>
-      </article>
-      <article className="summary-card summary-petal">
-        <span>Study groups</span>
+        <small>See upcoming plans</small>
+      </button>
+      <button
+        type="button"
+        className="summary-card summary-petal summary-button"
+        onClick={() => setActiveView("groups")}
+      >
+        <span>Groups</span>
         <strong>{studyGroups.length}</strong>
-      </article>
-      <article className="summary-card summary-lilac">
-        <span>Notifications</span>
-        <strong>{notifications.length}</strong>
-      </article>
+        <small>Jump into study spaces</small>
+      </button>
+      <button
+        type="button"
+        className="summary-card summary-lilac summary-button"
+        onClick={() => setActiveView("profile")}
+      >
+        <span>Profile</span>
+        <strong>{currentUser?.username?.slice(0, 1).toUpperCase() || "U"}</strong>
+        <small>Manage your space</small>
+      </button>
     </div>
   );
 
   const renderDashboard = () => (
     <div className="page-stack">
+      <section className="dashboard-hero">
+        <div>
+          <p className="dashboard-kicker">Dashboard</p>
+          <h2>Your campus at a glance</h2>
+          <p className="card-copy">
+            Open the main areas directly from here and keep the dashboard focused on overview, not notifications.
+          </p>
+        </div>
+        <div className="dashboard-hero-card">
+          <span className="dashboard-hero-label">Welcome back</span>
+          <strong>{currentUser?.username || "CampusFlow user"}</strong>
+          <p>{workspaceNotice.message}</p>
+        </div>
+      </section>
+
       {renderSummary()}
 
-      <div className={`status-banner status-${workspaceNotice.type}`} role="status">
-        {workspaceNotice.message}
-      </div>
-
       <div className="dashboard-grid">
-        <article className="data-panel">
+        <article className="data-panel dashboard-panel-large">
           <div className="panel-header">
-            <h3>Notifications</h3>
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => setActiveView("notifications")}
-            >
-              Open page
+            <h3>Explore CampusFlow</h3>
+            <span className="panel-chip">Quick routes</span>
+          </div>
+          <div className="dashboard-feature-grid">
+            <button type="button" className="dashboard-feature-card" onClick={() => setActiveView("feed")}>
+              <span className="feature-tag">Feed</span>
+              <strong>Community updates</strong>
+              <p>Announcements, reactions, and student conversations in one place.</p>
+            </button>
+            <button type="button" className="dashboard-feature-card" onClick={() => setActiveView("events")}>
+              <span className="feature-tag">Events</span>
+              <strong>Upcoming campus moments</strong>
+              <p>Track what is happening next and jump into RSVPs quickly.</p>
+            </button>
+            <button type="button" className="dashboard-feature-card" onClick={() => setActiveView("groups")}>
+              <span className="feature-tag">Groups</span>
+              <strong>Study together</strong>
+              <p>Open your active groups, requests, and shared resources.</p>
+            </button>
+            <button type="button" className="dashboard-feature-card" onClick={() => setActiveView("profile")}>
+              <span className="feature-tag">Profile</span>
+              <strong>Personalize your account</strong>
+              <p>Update your identity, privacy settings, and preferences.</p>
             </button>
           </div>
+        </article>
+
+        <article className="data-panel">
+          <div className="panel-header">
+            <h3>Next events</h3>
+            <span className="panel-chip">Upcoming</span>
+          </div>
           <div className="list-stack">
-            {notifications.length === 0 ? (
-              <p className="empty-copy">No notifications right now.</p>
+            {events.length === 0 ? (
+              <p className="empty-copy">No events available yet.</p>
             ) : (
-              notifications.slice(0, 4).map((item) => (
-                <div className={`list-card tone-${item.tone}`} key={item.id}>
-                  <strong>{item.title}</strong>
-                  <p>{item.detail}</p>
-                  <small>{formatDateTime(item.time)}</small>
+              events.slice(0, 3).map((event) => (
+                <div className="list-card" key={event.id}>
+                  <strong>{event.title}</strong>
+                  <p>{event.location}</p>
+                  <small>{formatDateTime(event.eventDate)}</small>
                 </div>
               ))
             )}
@@ -1140,30 +1220,8 @@ function App() {
 
         <article className="data-panel">
           <div className="panel-header">
-            <h3>Next events</h3>
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => setActiveView("events")}
-            >
-              Open page
-            </button>
-          </div>
-          <div className="list-stack">
-            {events.slice(0, 3).map((event) => (
-              <div className="list-card" key={event.id}>
-                <strong>{event.title}</strong>
-                <p>{event.location}</p>
-                <small>{formatDateTime(event.eventDate)}</small>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="data-panel">
-          <div className="panel-header">
             <h3>Quick actions</h3>
-            <span className="panel-chip">From your docs</span>
+            <span className="panel-chip">Shortcuts</span>
           </div>
           <div className="action-grid">
             <button type="button" className="secondary tile-button" onClick={() => setActiveView("feed")}>
@@ -1177,6 +1235,12 @@ function App() {
             </button>
             <button type="button" className="secondary tile-button" onClick={() => setActiveView("profile")}>
               Profile settings
+            </button>
+            <button type="button" className="secondary tile-button" onClick={() => setActiveView("menu")}>
+              Open menu
+            </button>
+            <button type="button" className="secondary tile-button" onClick={() => loadWorkspace(currentUser)}>
+              Refresh workspace
             </button>
           </div>
         </article>
@@ -1965,38 +2029,14 @@ function App() {
     </div>
   );
 
-  const renderAuth = () => (
-    <div className="auth-layout">
-      <section className="auth-hero">
-        <span className="eyebrow">CampusFlow</span>
-        <h1>Join campus life in one place.</h1>
-        <p className="hero-copy">
-          Register with your ADA-style email, verify the OTP, then sign in to browse events,
-          study groups, and campus updates.
-        </p>
-      </section>
+  const renderAuth = () => {
+    let authTitle = "Welcome back";
+    let authCopy = "Log in from the center screen to access your campus feed, groups, and events.";
+    let authFields = null;
 
-      <section className="auth-panel">
-        <div className="section-heading">
-          <div>
-            <h2>Welcome back</h2>
-            <p className="card-copy">
-              Everything important stays on the main screen. Demo and system details are in Menu.
-            </p>
-          </div>
-          <span className="section-chip">Pink theme</span>
-        </div>
-
-        <div className="form-grid">
-          <label className="field">
-            <span>Username</span>
-            <input
-              name="username"
-              placeholder="campusflow-user"
-              value={authForm.username}
-              onChange={handleAuthChange}
-            />
-          </label>
+    if (authPage === "login") {
+      authFields = (
+        <>
           <label className="field">
             <span>Email</span>
             <input
@@ -2007,24 +2047,113 @@ function App() {
               onChange={handleAuthChange}
             />
           </label>
-        </div>
 
-        <label className="field">
-          <span>Password</span>
-          <input
-            name="password"
-            type="password"
-            placeholder="Enter password"
-            value={authForm.password}
-            onChange={handleAuthChange}
-          />
-        </label>
+          <label className="field">
+            <span>Password</span>
+            <input
+              name="password"
+              type="password"
+              placeholder="Enter password"
+              value={authForm.password}
+              onChange={handleAuthChange}
+            />
+          </label>
 
-        <div className="verification-panel">
-          <div className="panel-header">
-            <h3>Email verification</h3>
-            <span className="panel-chip">OTP</span>
+          <div className="auth-link-row">
+            <button
+              type="button"
+              className="ghost-action"
+              onClick={() => {
+                setResetForm((current) => ({
+                  ...current,
+                  email: authForm.email.trim(),
+                }));
+                setAuthPage("forgot");
+                setStatus({
+                  type: "idle",
+                  message: "Enter your email to receive a password recovery code.",
+                });
+              }}
+            >
+              Forgot password?
+            </button>
           </div>
+
+          <button
+            type="button"
+            onClick={() => handleAuthAction("login")}
+            disabled={loadingAction !== null}
+          >
+            {loadingAction === "login" ? "Logging in..." : "Login"}
+          </button>
+        </>
+      );
+    }
+
+    if (authPage === "register") {
+      authTitle = "Create your account";
+      authCopy = "Register here first. After that, we will send you to the OTP verification page.";
+      authFields = (
+        <>
+          <label className="field">
+            <span>Username</span>
+            <input
+              name="username"
+              placeholder="campusflow-user"
+              value={authForm.username}
+              onChange={handleAuthChange}
+            />
+          </label>
+
+          <label className="field">
+            <span>Email</span>
+            <input
+              name="email"
+              type="email"
+              placeholder="student@ada.edu.az"
+              value={authForm.email}
+              onChange={handleAuthChange}
+            />
+          </label>
+
+          <label className="field">
+            <span>Password</span>
+            <input
+              name="password"
+              type="password"
+              placeholder="Create password"
+              value={authForm.password}
+              onChange={handleAuthChange}
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={() => handleAuthAction("register")}
+            disabled={loadingAction !== null}
+          >
+            {loadingAction === "register" ? "Registering..." : "Create account"}
+          </button>
+        </>
+      );
+    }
+
+    if (authPage === "verify") {
+      authTitle = "Verify your email";
+      authCopy = "We sent an OTP to your email. Enter it here to activate your account before logging in.";
+      authFields = (
+        <>
+          <label className="field">
+            <span>Email</span>
+            <input
+              name="email"
+              type="email"
+              placeholder="student@ada.edu.az"
+              value={authForm.email}
+              onChange={handleAuthChange}
+            />
+          </label>
+
           <label className="field">
             <span>OTP code</span>
             <input
@@ -2036,10 +2165,11 @@ function App() {
               onChange={handleAuthChange}
             />
           </label>
-          <div className="action-inline">
+
+          <div className="action-inline auth-actions">
             <button
               type="button"
-              className="secondary"
+              className="secondary wide-action"
               onClick={() => handleOtpAction("resend")}
               disabled={loadingAction !== null}
             >
@@ -2047,38 +2177,147 @@ function App() {
             </button>
             <button
               type="button"
+              className="wide-action"
               onClick={() => handleOtpAction("verify")}
               disabled={loadingAction !== null}
             >
               {loadingAction === "verify" ? "Verifying..." : "Verify email"}
             </button>
           </div>
-        </div>
+        </>
+      );
+    }
 
-        <div className="action-inline">
+    if (authPage === "forgot") {
+      authTitle = "Recover your password";
+      authCopy = "This page is separated in the UI, but email recovery still needs a backend endpoint before it can truly send reset emails.";
+      authFields = (
+        <>
+          <label className="field">
+            <span>Email</span>
+            <input
+              name="email"
+              type="email"
+              placeholder="student@ada.edu.az"
+              value={resetForm.email}
+              onChange={handleResetChange}
+            />
+          </label>
+
           <button
             type="button"
-            onClick={() => handleAuthAction("register")}
-            disabled={loadingAction !== null}
+            className="wide-action"
+            onClick={handleForgotPasswordRequest}
           >
-            {loadingAction === "register" ? "Registering..." : "Register"}
+            Continue
           </button>
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => handleAuthAction("login")}
-            disabled={loadingAction !== null}
-          >
-            {loadingAction === "login" ? "Logging in..." : "Login"}
-          </button>
-        </div>
+        </>
+      );
+    }
 
-        <div className={`status-banner status-${status.type}`} role="status">
-          {status.message}
-        </div>
-      </section>
-    </div>
-  );
+    return (
+      <div className="auth-center-shell">
+        <section className="auth-center-card">
+          <span className="eyebrow">CampusFlow</span>
+          <h1 className="auth-hero-title">Campus Life</h1>
+          <p className="hero-copy auth-hero-copy">
+            A cleaner student experience for events, communities, study groups, and campus updates.
+          </p>
+
+          <div className="auth-switcher">
+            <button
+              type="button"
+              className={`nav-pill auth-tab ${authPage === "login" ? "nav-pill-active" : ""}`}
+              onClick={() => setAuthPage("login")}
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              className={`nav-pill auth-tab ${authPage === "register" ? "nav-pill-active" : ""}`}
+              onClick={() => setAuthPage("register")}
+            >
+              Register
+            </button>
+          </div>
+
+          <div className="auth-panel auth-panel-centered">
+            <div className="section-heading">
+              <div>
+                <h2>{authTitle}</h2>
+                <p className="card-copy">{authCopy}</p>
+              </div>
+              <span className="section-chip">{authPage}</span>
+            </div>
+
+            {authFields}
+
+            <div className={`status-banner status-${status.type}`} role="status">
+              {status.message}
+            </div>
+
+            {authPage === "verify" ? (
+              <div className="auth-helper-card">
+                <strong>Verification step</strong>
+                <p>
+                  This page opens right after registration so the user can enter the OTP from email in a separate place.
+                </p>
+                <button
+                  type="button"
+                  className="ghost-action"
+                  onClick={() => setAuthPage("login")}
+                >
+                  Back to login
+                </button>
+              </div>
+            ) : null}
+
+            {authPage === "forgot" ? (
+              <div className="auth-helper-card">
+                <strong>Password recovery</strong>
+                <p>
+                  The page design is ready, but email recovery still needs backend support before it can actually send reset emails.
+                </p>
+                <button
+                  type="button"
+                  className="ghost-action"
+                  onClick={() => setAuthPage("login")}
+                >
+                  Back to login
+                </button>
+              </div>
+            ) : null}
+
+            {authPage === "login" ? (
+              <div className="auth-bottom-note">
+                <span>New here?</span>
+                <button
+                  type="button"
+                  className="ghost-action"
+                  onClick={() => setAuthPage("register")}
+                >
+                  Create account
+                </button>
+              </div>
+            ) : null}
+
+            {authPage === "register" ? (
+              <div className="auth-bottom-note">
+                <span>Already have an account?</span>
+                <button
+                  type="button"
+                  className="ghost-action"
+                  onClick={() => setAuthPage("login")}
+                >
+                  Back to login
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </section>
+      </div>
+    );
+  };
 
   const navigationItems = currentUser ? privateNavigation : publicNavigation;
 
@@ -2129,7 +2368,12 @@ function App() {
               key={item.id}
               type="button"
               className={`nav-pill ${activeView === item.id ? "nav-pill-active" : ""}`}
-              onClick={() => setActiveView(item.id)}
+              onClick={() => {
+                setActiveView(item.id);
+                if (!currentUser && item.id === "auth") {
+                  setAuthPage("login");
+                }
+              }}
             >
               {item.label}
             </button>
