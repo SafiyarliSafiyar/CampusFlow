@@ -54,7 +54,6 @@ const privateNavigation = [
   { id: "groups", label: "Groups" },
   { id: "notifications", label: "Notifications" },
   { id: "profile", label: "Profile" },
-  { id: "menu", label: "Menu" },
 ];
 
 const emptyAuthForm = {
@@ -153,6 +152,14 @@ function canOpenGroupChat(group, user, joinStatuses) {
   }
 
   return group.creatorId === user.userId || joinStatuses[group.id] === "ACCEPTED";
+}
+
+function formatRole(role) {
+  if (!role) {
+    return "Member";
+  }
+
+  return role.charAt(0) + role.slice(1).toLowerCase();
 }
 
 function buildCalendarLink(event) {
@@ -2557,6 +2564,16 @@ function App() {
 
         {currentUser ? (
           <div className="top-actions">
+            <span className="top-user-pill">
+              {currentUser.username} · {formatRole(currentUser.role)}
+            </span>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setActiveView("menu")}
+            >
+              More
+            </button>
             <button
               type="button"
               className="secondary"
