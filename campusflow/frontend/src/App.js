@@ -66,6 +66,9 @@ const emptyAuthForm = {
 
 const emptyResetForm = {
   email: "",
+  otpCode: "",
+  newPassword: "",
+  confirmPassword: "",
 };
 
 const emptyPostForm = {
@@ -190,6 +193,7 @@ function App() {
   const [authPage, setAuthPage] = useState("login");
   const [authForm, setAuthForm] = useState(emptyAuthForm);
   const [resetForm, setResetForm] = useState(emptyResetForm);
+  const [resetStep, setResetStep] = useState("request");
   const [status, setStatus] = useState({
     type: "idle",
     message: "Log in to start using CampusFlow.",
@@ -714,6 +718,8 @@ function App() {
     setRsvpStateByEvent({});
     setActiveView("auth");
     setAuthPage("login");
+    setResetStep("request");
+    setResetForm(emptyResetForm);
     setWorkspaceNotice({
       type: "idle",
       message: "You are signed out.",
@@ -734,13 +740,107 @@ function App() {
     });
     setActiveView("auth");
     setAuthPage("login");
+    setResetStep("request");
+    setResetForm(emptyResetForm);
   };
 
-  const handleForgotPasswordRequest = () => {
+  const handleForgotPasswordRequest = async () => {
+    const nextEmail = resetForm.email.trim();
+
+    if (!nextEmail) {
+      setStatus({
+        type: "error",
+        message: "Enter your email first.",
+      });
+      return;
+    }
+
+    setLoadingAction("forgot-password");
     setStatus({
-      type: "idle",
-      message: "Forgot password page is ready on the frontend, but sending recovery emails needs backend support. Right now only login, register, and OTP verification are connected.",
+      type: "loading",
+      message: "Sending a password reset code...",
     });
+
+    try {
+      const data = await request("/api/v1/users/forgot-password", {
+        method: "POST",
+        body: {
+          email: nextEmail,
+        },
+        auth: false,
+      });
+      setResetStep("confirm");
+      setStatus({
+        type: "success",
+        message: data?.message
+          || "If the account exists, a password reset code has been sent.",
+      });
+    } catch (error) {
+      setStatus({
+        type: "error",
+        message: error.message || "Could not send the password reset code.",
+      });
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    const nextEmail = resetForm.email.trim();
+    const nextOtpCode = resetForm.otpCode.trim();
+
+    if (!nextEmail || !nextOtpCode || !resetForm.newPassword || !resetForm.confirmPassword) {
+      setStatus({
+        type: "error",
+        message: "Complete the email, code, and new password fields.",
+      });
+      return;
+    }
+
+    if (resetForm.newPassword !== resetForm.confirmPassword) {
+      setStatus({
+        type: "error",
+        message: "The new passwords do not match.",
+      });
+      return;
+    }
+
+    setLoadingAction("reset-password");
+    setStatus({
+      type: "loading",
+      message: "Updating your password...",
+    });
+
+    try {
+      const data = await request("/api/v1/users/reset-password", {
+        method: "POST",
+        body: {
+          email: nextEmail,
+          otpCode: nextOtpCode,
+          newPassword: resetForm.newPassword,
+        },
+        auth: false,
+      });
+      setAuthForm((current) => ({
+        ...current,
+        email: nextEmail,
+        password: "",
+      }));
+      setResetForm(emptyResetForm);
+      setResetStep("request");
+      setAuthPage("login");
+      setStatus({
+        type: "success",
+        message: data?.message || "Password reset successfully. You can log in now.",
+      });
+    } catch (error) {
+      setStatus({
+        type: "error",
+        message: error.message || "Could not reset the password.",
+      });
+    } finally {
+      setLoadingAction(null);
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -2064,10 +2164,11 @@ function App() {
               type="button"
               className="ghost-action"
               onClick={() => {
-                setResetForm((current) => ({
-                  ...current,
+                setResetStep("request");
+                setResetForm({
+                  ...emptyResetForm,
                   email: authForm.email.trim(),
-                }));
+                });
                 setAuthPage("forgot");
                 setStatus({
                   type: "idle",
@@ -2190,7 +2291,9 @@ function App() {
 
     if (authPage === "forgot") {
       authTitle = "Recover your password";
-      authCopy = "This page is separated in the UI, but email recovery still needs a backend endpoint before it can truly send reset emails.";
+      authCopy = resetStep === "confirm"
+        ? "Enter the reset code from email and choose a new password."
+        : "Enter your email to receive a 6-digit password reset code.";
       authFields = (
         <>
           <label className="field">
@@ -2204,13 +2307,81 @@ function App() {
             />
           </label>
 
-          <button
-            type="button"
-            className="wide-action"
-            onClick={handleForgotPasswordRequest}
-          >
-            Continue
-          </button>
+          {resetStep === "confirm" ? (
+            <>
+              <label className="field">
+                <span>Reset code</span>
+                <input
+                  name="otpCode"
+                  inputMode="numeric"
+                  maxLength="6"
+                  placeholder="123456"
+                  value={resetForm.otpCode}
+                  onChange={handleResetChange}
+                />
+              </label>
+
+              <label className="field">
+                <span>New password</span>
+                <input
+                  name="newPassword"
+                  type="password"
+                  placeholder="Enter a new password"
+                  value={resetForm.newPassword}
+                  onChange={handleResetChange}
+                />
+              </label>
+
+              <label className="field">
+                <span>Confirm new password</span>
+                <input
+                  name="confirmPassword"
+                  type="password"
+                  placeholder="Repeat the new password"
+                  value={resetForm.confirmPassword}
+                  onChange={handleResetChange}
+                />
+              </label>
+
+              <div className="action-inline auth-actions">
+                <button
+                  type="button"
+                  className="secondary wide-action"
+                  onClick={() => {
+                    setResetStep("request");
+                    setResetForm((current) => ({
+                      ...emptyResetForm,
+                      email: current.email,
+                    }));
+                    setStatus({
+                      type: "idle",
+                      message: "Request a fresh reset code if needed.",
+                    });
+                  }}
+                  disabled={loadingAction !== null}
+                >
+                  Edit email
+                </button>
+                <button
+                  type="button"
+                  className="wide-action"
+                  onClick={handleResetPassword}
+                  disabled={loadingAction !== null}
+                >
+                  {loadingAction === "reset-password" ? "Resetting..." : "Reset password"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="wide-action"
+              onClick={handleForgotPasswordRequest}
+              disabled={loadingAction !== null}
+            >
+              {loadingAction === "forgot-password" ? "Sending..." : "Send reset code"}
+            </button>
+          )}
         </>
       );
     }
@@ -2276,12 +2447,16 @@ function App() {
               <div className="auth-helper-card">
                 <strong>Password recovery</strong>
                 <p>
-                  The page design is ready, but email recovery still needs backend support before it can actually send reset emails.
+                  Request the code first, then enter the code and your new password here.
                 </p>
                 <button
                   type="button"
                   className="ghost-action"
-                  onClick={() => setAuthPage("login")}
+                  onClick={() => {
+                    setAuthPage("login");
+                    setResetStep("request");
+                    setResetForm(emptyResetForm);
+                  }}
                 >
                   Back to login
                 </button>

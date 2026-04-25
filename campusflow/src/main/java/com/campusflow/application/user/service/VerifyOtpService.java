@@ -4,6 +4,7 @@ import com.campusflow.application.user.dto.VerifyOtpInput;
 import com.campusflow.application.user.usecase.VerifyOtpUseCase;
 import com.campusflow.domain.user.exception.InvalidOtpException;
 import com.campusflow.domain.user.exception.OtpNotFoundException;
+import com.campusflow.domain.user.model.OtpPurpose;
 import com.campusflow.domain.user.exception.UserNotFoundException;
 import com.campusflow.domain.user.model.User;
 import com.campusflow.domain.user.model.VerificationStatus;
@@ -24,11 +25,11 @@ public class VerifyOtpService implements VerifyOtpUseCase {
         User user = userRepositoryPort.findByEmail(input.getEmail())
                 .orElseThrow(() -> new UserNotFoundException(input.getEmail()));
 
-        if (!otpRepositoryPort.hasOtp(input.getEmail())) {
+        if (!otpRepositoryPort.hasOtp(input.getEmail(), OtpPurpose.EMAIL_VERIFICATION)) {
             throw new OtpNotFoundException();
         }
 
-        if (!otpRepositoryPort.verifyOtp(input.getEmail(), input.getOtpCode())) {
+        if (!otpRepositoryPort.verifyOtp(input.getEmail(), OtpPurpose.EMAIL_VERIFICATION, input.getOtpCode())) {
             throw new InvalidOtpException();
         }
 
@@ -43,6 +44,6 @@ public class VerifyOtpService implements VerifyOtpUseCase {
                 .build();
 
         userRepositoryPort.save(verifiedUser);
-        otpRepositoryPort.deleteOtp(input.getEmail());
+        otpRepositoryPort.deleteOtp(input.getEmail(), OtpPurpose.EMAIL_VERIFICATION);
     }
 }

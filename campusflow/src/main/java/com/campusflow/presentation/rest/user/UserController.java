@@ -4,11 +4,14 @@ import com.campusflow.application.user.dto.AssignRoleInput;
 import com.campusflow.application.user.dto.LoginResult;
 import com.campusflow.application.user.dto.LoginUserInput;
 import com.campusflow.application.user.dto.RegisterUserInput;
+import com.campusflow.application.user.dto.ResetPasswordInput;
 import com.campusflow.application.user.dto.UpdateProfileInput;
 import com.campusflow.application.user.dto.VerifyOtpInput;
 import com.campusflow.application.user.usecase.AssignRoleUseCase;
 import com.campusflow.application.user.usecase.LoginUserUseCase;
 import com.campusflow.application.user.usecase.RegisterUserUseCase;
+import com.campusflow.application.user.usecase.RequestPasswordResetUseCase;
+import com.campusflow.application.user.usecase.ResetPasswordUseCase;
 import com.campusflow.application.user.usecase.SendOtpUseCase;
 import com.campusflow.application.user.usecase.UpdateProfileUseCase;
 import com.campusflow.application.user.usecase.VerifyOtpUseCase;
@@ -39,6 +42,8 @@ public class UserController {
     private final AssignRoleUseCase assignRoleUseCase;
     private final SendOtpUseCase sendOtpUseCase;
     private final VerifyOtpUseCase verifyOtpUseCase;
+    private final RequestPasswordResetUseCase requestPasswordResetUseCase;
+    private final ResetPasswordUseCase resetPasswordUseCase;
 
     @PostMapping("/register")
     public ResponseEntity<RegisterUserResponse> register(@RequestBody @Valid RegisterUserRequest request) {
@@ -87,6 +92,25 @@ public class UserController {
     public ResponseEntity<Map<String, String>> resendOtp(@RequestBody @Valid ResendOtpRequest request) {
         sendOtpUseCase.sendOtp(request.getEmail());
         return ResponseEntity.ok(Map.of("message", "OTP sent successfully"));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(@RequestBody @Valid ResendOtpRequest request) {
+        requestPasswordResetUseCase.requestReset(request.getEmail());
+        return ResponseEntity.ok(Map.of(
+                "message",
+                "If the account exists, a password reset code has been sent."
+        ));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, String>> resetPassword(@RequestBody @Valid ResetPasswordRequest request) {
+        resetPasswordUseCase.resetPassword(new ResetPasswordInput(
+                request.getEmail(),
+                request.getOtpCode(),
+                request.getNewPassword()
+        ));
+        return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
     }
 
     @PutMapping("/profile")

@@ -8,11 +8,10 @@ beforeEach(() => {
 test("renders auth smoke test content", () => {
   render(<App />);
 
-  expect(screen.getByRole("heading", { name: /campusflow/i })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /campus life/i })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /register/i })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /login/i })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /verify email/i })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /resend otp/i })).toBeInTheDocument();
-  expect(screen.getByText(/local demo accounts/i)).toBeInTheDocument();
-  expect(screen.getByRole("status")).toHaveTextContent(/register, verify, or log in/i);
+  expect(screen.getAllByRole("button", { name: /login/i }).length).toBeGreaterThan(0);
+  expect(screen.getByRole("button", { name: /forgot password/i })).toBeInTheDocument();
+  expect(screen.getByText(/welcome back/i)).toBeInTheDocument();
+  expect(screen.getByRole("status")).toHaveTextContent(/log in to start using campusflow/i);
 });

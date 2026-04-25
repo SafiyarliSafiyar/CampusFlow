@@ -1,5 +1,6 @@
 package com.campusflow.infrastructure.persistence.mongo.otp;
 
+import com.campusflow.domain.user.model.OtpPurpose;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,14 +17,16 @@ public class OtpDocument {
     @Id
     private String id;
     private String email;
+    private OtpPurpose purpose;
     private String otpCode;
     private LocalDateTime createdAt;
     @Indexed(expireAfterSeconds = 600)
     private LocalDateTime expiresAt;
 
-    public static OtpDocument create(String email, String otpCode) {
+    public static OtpDocument create(String email, OtpPurpose purpose, String otpCode) {
         OtpDocument doc = new OtpDocument();
         doc.setEmail(email);
+        doc.setPurpose(purpose);
         doc.setOtpCode(otpCode);
         doc.setCreatedAt(LocalDateTime.now());
         doc.setExpiresAt(LocalDateTime.now().plusMinutes(10));

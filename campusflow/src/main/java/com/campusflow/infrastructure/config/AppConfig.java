@@ -35,12 +35,16 @@ import com.campusflow.application.studygroup.usecase.RequestJoinUseCase;
 import com.campusflow.application.user.service.AssignRoleService;
 import com.campusflow.application.user.service.LoginUserService;
 import com.campusflow.application.user.service.RegisterUserService;
+import com.campusflow.application.user.service.RequestPasswordResetService;
+import com.campusflow.application.user.service.ResetPasswordService;
 import com.campusflow.application.user.service.SendOtpService;
 import com.campusflow.application.user.service.UpdateProfileService;
 import com.campusflow.application.user.service.VerifyOtpService;
 import com.campusflow.application.user.usecase.AssignRoleUseCase;
 import com.campusflow.application.user.usecase.LoginUserUseCase;
 import com.campusflow.application.user.usecase.RegisterUserUseCase;
+import com.campusflow.application.user.usecase.RequestPasswordResetUseCase;
+import com.campusflow.application.user.usecase.ResetPasswordUseCase;
 import com.campusflow.application.user.usecase.SendOtpUseCase;
 import com.campusflow.application.user.usecase.UpdateProfileUseCase;
 import com.campusflow.application.user.usecase.VerifyOtpUseCase;
@@ -131,6 +135,24 @@ public class AppConfig {
             UserRepositoryPort userRepositoryPort
     ) {
         return new VerifyOtpService(otpRepositoryPort, userRepositoryPort);
+    }
+
+    @Bean
+    public RequestPasswordResetUseCase requestPasswordResetUseCase(
+            UserRepositoryPort userRepositoryPort,
+            OtpRepositoryPort otpRepositoryPort,
+            EmailServicePort emailServicePort
+    ) {
+        return new RequestPasswordResetService(userRepositoryPort, otpRepositoryPort, emailServicePort);
+    }
+
+    @Bean
+    public ResetPasswordUseCase resetPasswordUseCase(
+            UserRepositoryPort userRepositoryPort,
+            OtpRepositoryPort otpRepositoryPort,
+            PasswordEncoder passwordEncoder
+    ) {
+        return new ResetPasswordService(userRepositoryPort, otpRepositoryPort, passwordEncoder);
     }
 
     @Bean

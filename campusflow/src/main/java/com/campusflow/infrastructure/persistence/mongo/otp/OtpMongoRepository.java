@@ -1,12 +1,13 @@
 package com.campusflow.infrastructure.persistence.mongo.otp;
 
+import com.campusflow.domain.user.model.OtpPurpose;
 import java.util.Optional;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 public interface OtpMongoRepository extends MongoRepository<OtpDocument, String> {
-    Optional<OtpDocument> findByEmailAndOtpCode(String email, String otpCode);
+    Optional<OtpDocument> findByEmailAndPurposeAndOtpCode(String email, OtpPurpose purpose, String otpCode);
 
-    void deleteByEmail(String email);
+    void deleteByEmailAndPurpose(String email, OtpPurpose purpose);
 
-    boolean existsByEmail(String email);
+    boolean existsByEmailAndPurpose(String email, OtpPurpose purpose);
 }
