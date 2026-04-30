@@ -113,6 +113,107 @@ const emptyResourceForm = {
   url: "",
 };
 
+const pathPuzzleLevels = [
+  {
+    id: "route-1",
+    name: "Warm-up Route",
+    difficulty: 1,
+    size: 4,
+    description: "A simpler 4x4 starter puzzle. Fill every tile while visiting the corners in order.",
+    checkpoints: [
+      { label: 1, x: 0, y: 0 },
+      { label: 2, x: 3, y: 0 },
+      { label: 3, x: 3, y: 3 },
+      { label: 4, x: 0, y: 3 },
+    ],
+    solution: [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 2, y: 0 },
+      { x: 3, y: 0 },
+      { x: 3, y: 1 },
+      { x: 2, y: 1 },
+      { x: 1, y: 1 },
+      { x: 0, y: 1 },
+      { x: 0, y: 2 },
+      { x: 1, y: 2 },
+      { x: 2, y: 2 },
+      { x: 3, y: 2 },
+      { x: 3, y: 3 },
+      { x: 2, y: 3 },
+      { x: 1, y: 3 },
+      { x: 0, y: 3 },
+    ],
+  },
+  {
+    id: "route-2",
+    name: "Studio Loop",
+    difficulty: 2,
+    size: 4,
+    description: "A 4x4 route with inner turns. Any full-grid answer works if the checkpoints stay in order.",
+    checkpoints: [
+      { label: 1, x: 0, y: 1 },
+      { label: 2, x: 3, y: 0 },
+      { label: 3, x: 3, y: 2 },
+      { label: 4, x: 0, y: 2 },
+    ],
+    solution: [
+      { x: 0, y: 1 },
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 2, y: 0 },
+      { x: 3, y: 0 },
+      { x: 3, y: 1 },
+      { x: 2, y: 1 },
+      { x: 1, y: 1 },
+      { x: 1, y: 2 },
+      { x: 2, y: 2 },
+      { x: 3, y: 2 },
+      { x: 3, y: 3 },
+      { x: 2, y: 3 },
+      { x: 1, y: 3 },
+      { x: 0, y: 3 },
+      { x: 0, y: 2 },
+    ],
+  },
+  {
+    id: "route-3",
+    name: "Corner Circuit",
+    difficulty: 3,
+    size: 4,
+    description: "A final 4x4 puzzle with one extra checkpoint but still the same simple full-grid rule.",
+    checkpoints: [
+      { label: 1, x: 3, y: 0 },
+      { label: 2, x: 0, y: 1 },
+      { label: 3, x: 3, y: 2 },
+      { label: 4, x: 0, y: 3 },
+      { label: 5, x: 3, y: 3 },
+    ],
+    solution: [
+      { x: 3, y: 0 },
+      { x: 2, y: 0 },
+      { x: 1, y: 0 },
+      { x: 0, y: 0 },
+      { x: 0, y: 1 },
+      { x: 1, y: 1 },
+      { x: 2, y: 1 },
+      { x: 3, y: 1 },
+      { x: 3, y: 2 },
+      { x: 2, y: 2 },
+      { x: 1, y: 2 },
+      { x: 0, y: 2 },
+      { x: 0, y: 3 },
+      { x: 1, y: 3 },
+      { x: 2, y: 3 },
+      { x: 3, y: 3 },
+    ],
+  },
+];
+
+function coordsKey(x, y) {
+  return `${x}-${y}`;
+}
+
 function formatDateTime(value) {
   if (!value) {
     return "No date set";
@@ -160,6 +261,51 @@ function formatRole(role) {
   }
 
   return role.charAt(0) + role.slice(1).toLowerCase();
+}
+
+function formatDuration(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function isAdjacentCell(firstCell, secondCell) {
+  if (!firstCell || !secondCell) {
+    return false;
+  }
+
+  return Math.abs(firstCell.x - secondCell.x) + Math.abs(firstCell.y - secondCell.y) === 1;
+}
+
+function getVisitedCheckpointLabels(path, checkpointMap) {
+  return path
+    .map((cell) => checkpointMap.get(coordsKey(cell.x, cell.y)))
+    .filter(Boolean);
+}
+
+function getNextRequiredCheckpoint(level, path, checkpointMap) {
+  const nextLabel = getVisitedCheckpointLabels(path, checkpointMap).length + 1;
+  return level.checkpoints.find((checkpoint) => checkpoint.label === nextLabel) || null;
+}
+
+function didVisitCheckpointsInOrder(level, path, checkpointMap) {
+  const visitedLabels = getVisitedCheckpointLabels(path, checkpointMap);
+  return visitedLabels.length === level.checkpoints.length
+    && visitedLabels.every((label, index) => label === index + 1);
+}
+
+function isPuzzleGridFilled(level, path) {
+  return path.length === level.size * level.size;
+}
+
+function calculatePathPuzzleScore(level, durationSeconds, movesUsed, hintsUsed) {
+  const optimalMoves = Math.max(0, (level.size * level.size) - 1);
+  const movePenalty = Math.max(0, movesUsed - optimalMoves) * 8;
+  const timePenalty = Math.min(140, durationSeconds * 2);
+  const hintPenalty = hintsUsed * 24;
+  const baseScore = 220 + level.difficulty * 110;
+
+  return Math.max(80, Math.round(baseScore - movePenalty - timePenalty - hintPenalty));
 }
 
 function buildCalendarLink(event) {
@@ -233,6 +379,34 @@ function App() {
   const [sharedResources, setSharedResources] = useState({});
   const [postInteractions, setPostInteractions] = useState({});
   const [rsvpStateByEvent, setRsvpStateByEvent] = useState({});
+  const [dailyQuiz, setDailyQuiz] = useState({
+    quizDate: null,
+    questions: [],
+  });
+  const [quizLeaderboard, setQuizLeaderboard] = useState([]);
+  const [quizAnswers, setQuizAnswers] = useState({});
+  const [quizQuestionIndex, setQuizQuestionIndex] = useState(0);
+  const [quizResult, setQuizResult] = useState(null);
+  const [quizStatus, setQuizStatus] = useState({
+    type: "idle",
+    message: "Answer five quick OOP and system design questions to earn points and climb the leaderboard.",
+  });
+  const [selectedPuzzleLevelId, setSelectedPuzzleLevelId] = useState(pathPuzzleLevels[0].id);
+  const [pathPuzzleLeaderboard, setPathPuzzleLeaderboard] = useState([]);
+  const [puzzlePath, setPuzzlePath] = useState([]);
+  const [puzzleStarted, setPuzzleStarted] = useState(false);
+  const [puzzleReadyToSubmit, setPuzzleReadyToSubmit] = useState(false);
+  const [puzzleElapsedSeconds, setPuzzleElapsedSeconds] = useState(0);
+  const [puzzleStartedAt, setPuzzleStartedAt] = useState(null);
+  const [puzzleHintsUsed, setPuzzleHintsUsed] = useState(0);
+  const [puzzleStatus, setPuzzleStatus] = useState({
+    type: "idle",
+    message: "Choose a route and press Start to fill the full 4x4 grid.",
+  });
+  const [puzzleHintCellKey, setPuzzleHintCellKey] = useState(null);
+  const [pathPuzzleResult, setPathPuzzleResult] = useState(null);
+  const [puzzleShareStatus, setPuzzleShareStatus] = useState("");
+  const [showPuzzleSolution, setShowPuzzleSolution] = useState(false);
 
   const selectedGroup = studyGroups.find((group) => group.id === selectedGroupId) || null;
   const selectedGroupResources = sharedResources[selectedGroupId] || [];
@@ -251,6 +425,40 @@ function App() {
     [group.name, group.topic, group.course, group.status],
     groupSearch,
   ));
+  const currentQuizQuestion = dailyQuiz.questions[quizQuestionIndex] || null;
+  const answeredQuizCount = dailyQuiz.questions.filter(
+    (question) => quizAnswers[question.id] !== undefined,
+  ).length;
+  const currentPuzzleLevel = useMemo(
+    () => pathPuzzleLevels.find((level) => level.id === selectedPuzzleLevelId) || pathPuzzleLevels[0],
+    [selectedPuzzleLevelId],
+  );
+  const currentPuzzleCheckpointMap = useMemo(
+    () => new Map(
+      currentPuzzleLevel.checkpoints.map((checkpoint) => [
+        coordsKey(checkpoint.x, checkpoint.y),
+        checkpoint.label,
+      ]),
+    ),
+    [currentPuzzleLevel],
+  );
+  const puzzlePathKeys = useMemo(
+    () => new Set(puzzlePath.map((cell) => coordsKey(cell.x, cell.y))),
+    [puzzlePath],
+  );
+  const currentPuzzleSolutionKeys = useMemo(
+    () => new Set(currentPuzzleLevel.solution.map((cell) => coordsKey(cell.x, cell.y))),
+    [currentPuzzleLevel],
+  );
+  const currentPuzzleSolutionStepMap = useMemo(
+    () => new Map(
+      currentPuzzleLevel.solution.map((cell, index) => [coordsKey(cell.x, cell.y), index + 1]),
+    ),
+    [currentPuzzleLevel],
+  );
+  const puzzleMovesUsed = Math.max(0, puzzlePath.length - 1);
+  const puzzleTotalCells = currentPuzzleLevel.size * currentPuzzleLevel.size;
+  const remainingPuzzleCells = Math.max(0, puzzleTotalCells - puzzlePath.length);
   const notifications = useMemo(() => {
     if (!currentUser || !profilePreferences.notificationsEnabled) {
       return [];
@@ -412,10 +620,13 @@ function App() {
     });
 
     try {
-      const [feedData, eventData, groupData] = await Promise.all([
+      const [feedData, eventData, groupData, quizData, leaderboardData, puzzleLeaderboardData] = await Promise.all([
         request("/api/v1/feed?page=0&size=20"),
         request("/api/v1/events"),
         request("/api/v1/study-groups"),
+        request("/api/v1/game/daily-quiz").catch(() => null),
+        request("/api/v1/game/leaderboard?limit=5").catch(() => []),
+        request("/api/v1/game/path-puzzle/leaderboard?limit=5").catch(() => []),
       ]);
 
       const nextJoinStatuses = {};
@@ -444,6 +655,21 @@ function App() {
       setStudyGroups(Array.isArray(groupData) ? groupData : []);
       setJoinStatuses(nextJoinStatuses);
       setCreatorRequests(nextCreatorRequests);
+      setDailyQuiz({
+        quizDate: quizData?.quizDate || null,
+        questions: Array.isArray(quizData?.questions) ? quizData.questions : [],
+      });
+      setQuizLeaderboard(Array.isArray(leaderboardData) ? leaderboardData : []);
+      setPathPuzzleLeaderboard(Array.isArray(puzzleLeaderboardData) ? puzzleLeaderboardData : []);
+      setQuizAnswers({});
+      setQuizQuestionIndex(0);
+      setQuizResult(null);
+      setQuizStatus({
+        type: "idle",
+        message: Array.isArray(quizData?.questions) && quizData.questions.length > 0
+          ? "Play the daily quiz to practice OOP and system design fundamentals."
+          : "The quiz will appear here when game data is available.",
+      });
 
       const nextAccessibleGroups = (groupData || []).filter((group) =>
         canOpenGroupChat(group, user, nextJoinStatuses));
@@ -564,6 +790,35 @@ function App() {
       JSON.stringify(sharedResources),
     );
   }, [currentUser, sharedResources]);
+
+  useEffect(() => {
+    setPuzzlePath([]);
+    setPuzzleStarted(false);
+    setPuzzleReadyToSubmit(false);
+    setPuzzleElapsedSeconds(0);
+    setPuzzleStartedAt(null);
+    setPuzzleHintsUsed(0);
+    setPuzzleHintCellKey(null);
+    setPathPuzzleResult(null);
+    setPuzzleShareStatus("");
+    setShowPuzzleSolution(false);
+    setPuzzleStatus({
+      type: "idle",
+      message: "Choose a route and press Start to fill the full 4x4 grid.",
+    });
+  }, [selectedPuzzleLevelId]);
+
+  useEffect(() => {
+    if (!puzzleStarted || puzzleReadyToSubmit || !puzzleStartedAt) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setPuzzleElapsedSeconds(Math.floor((Date.now() - puzzleStartedAt) / 1000));
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [puzzleReadyToSubmit, puzzleStarted, puzzleStartedAt]);
 
   const handleAuthChange = (event) => {
     const { name, value } = event.target;
@@ -719,6 +974,32 @@ function App() {
     setStudyGroups([]);
     setJoinStatuses({});
     setCreatorRequests({});
+    setDailyQuiz({
+      quizDate: null,
+      questions: [],
+    });
+    setQuizLeaderboard([]);
+    setQuizAnswers({});
+    setQuizQuestionIndex(0);
+    setQuizResult(null);
+    setPathPuzzleLeaderboard([]);
+    setPuzzlePath([]);
+    setPuzzleStarted(false);
+    setPuzzleReadyToSubmit(false);
+    setPuzzleElapsedSeconds(0);
+    setPuzzleStartedAt(null);
+    setPuzzleHintsUsed(0);
+    setPuzzleHintCellKey(null);
+    setPathPuzzleResult(null);
+    setPuzzleShareStatus("");
+    setPuzzleStatus({
+      type: "idle",
+      message: "Choose a route and press Start to begin the path puzzle challenge.",
+    });
+    setQuizStatus({
+      type: "idle",
+      message: "Answer five quick questions to earn points and climb the leaderboard.",
+    });
     setSelectedGroupId(null);
     setMessages([]);
     setMessageForm(emptyMessageForm);
@@ -1215,6 +1496,351 @@ function App() {
     setResourceForm(emptyResourceForm);
   };
 
+  const handleQuizOptionSelect = (questionId, optionIndex) => {
+    setQuizAnswers((current) => ({
+      ...current,
+      [questionId]: optionIndex,
+    }));
+  };
+
+  const handleQuizRestart = () => {
+    setQuizAnswers({});
+    setQuizQuestionIndex(0);
+    setQuizResult(null);
+    setQuizStatus({
+      type: "idle",
+      message: "The quiz is reset. Answer all five questions when you are ready.",
+    });
+  };
+
+  const handleSubmitQuiz = async () => {
+    if (!dailyQuiz.questions.length) {
+      return;
+    }
+
+    const firstUnansweredQuestion = dailyQuiz.questions.find(
+      (question) => quizAnswers[question.id] === undefined,
+    );
+
+    if (firstUnansweredQuestion) {
+      setQuizQuestionIndex(dailyQuiz.questions.findIndex(
+        (question) => question.id === firstUnansweredQuestion.id,
+      ));
+      setQuizStatus({
+        type: "error",
+        message: "Answer every question before submitting your quiz.",
+      });
+      return;
+    }
+
+    setLoadingAction("quiz-submit");
+    setQuizStatus({
+      type: "loading",
+      message: "Submitting your quiz score...",
+    });
+
+    try {
+      const submission = await request("/api/v1/game/daily-quiz/submit", {
+        method: "POST",
+        body: {
+          answers: dailyQuiz.questions.map((question) => ({
+            questionId: question.id,
+            selectedOptionIndex: quizAnswers[question.id],
+          })),
+        },
+      });
+      const leaderboard = await request("/api/v1/game/leaderboard?limit=5");
+
+      setQuizResult(submission);
+      setQuizLeaderboard(Array.isArray(leaderboard) ? leaderboard : []);
+      setQuizStatus({
+        type: "success",
+        message: `You scored ${submission?.score || 0} points and now have ${submission?.totalPoints || 0} total points.`,
+      });
+    } catch (error) {
+      setQuizStatus({
+        type: "error",
+        message: error.message || "The quiz could not be submitted.",
+      });
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleStartPathPuzzle = () => {
+    const startCell = currentPuzzleLevel.checkpoints[0];
+    setPuzzlePath([{ ...startCell }]);
+    setPuzzleStarted(true);
+    setPuzzleReadyToSubmit(false);
+    setPuzzleElapsedSeconds(0);
+    setPuzzleStartedAt(Date.now());
+    setPuzzleHintsUsed(0);
+    setPuzzleHintCellKey(null);
+    setPathPuzzleResult(null);
+    setPuzzleShareStatus("");
+    setShowPuzzleSolution(false);
+    setPuzzleStatus({
+      type: "idle",
+      message: "Move one cell at a time, visit the numbered points in order, and fill the whole 4x4 grid.",
+    });
+  };
+
+  const handleResetPathPuzzle = () => {
+    setPuzzlePath([]);
+    setPuzzleStarted(false);
+    setPuzzleReadyToSubmit(false);
+    setPuzzleElapsedSeconds(0);
+    setPuzzleStartedAt(null);
+    setPuzzleHintsUsed(0);
+    setPuzzleHintCellKey(null);
+    setPathPuzzleResult(null);
+    setPuzzleShareStatus("");
+    setShowPuzzleSolution(false);
+    setPuzzleStatus({
+      type: "idle",
+      message: "Puzzle reset. Press Start whenever you want a fresh attempt.",
+    });
+  };
+
+  const handleUndoPathPuzzleMove = () => {
+    if (!puzzleStarted) {
+      setPuzzleStatus({
+        type: "error",
+        message: "Start the level before using undo.",
+      });
+      return;
+    }
+
+    if (puzzlePath.length <= 1) {
+      setPuzzleStatus({
+        type: "error",
+        message: "You are already back at the starting point.",
+      });
+      return;
+    }
+
+    setPuzzlePath((current) => current.slice(0, -1));
+    setPuzzleReadyToSubmit(false);
+    setPuzzleHintCellKey(null);
+    setPathPuzzleResult(null);
+    setPuzzleShareStatus("");
+    setShowPuzzleSolution(false);
+    setPuzzleStatus({
+      type: "idle",
+      message: "Last move removed. Keep tracing the route.",
+    });
+  };
+
+  const handlePathPuzzleHint = () => {
+    if (!puzzleStarted) {
+      setPuzzleStatus({
+        type: "error",
+        message: "Start the level first to unlock hints.",
+      });
+      return;
+    }
+
+    if (puzzleReadyToSubmit) {
+      setPuzzleStatus({
+        type: "idle",
+        message: "Your grid is full. Submit it to save the score and reveal the reference solution.",
+      });
+      return;
+    }
+
+    const nextCheckpoint = getNextRequiredCheckpoint(
+      currentPuzzleLevel,
+      puzzlePath,
+      currentPuzzleCheckpointMap,
+    );
+
+    if (!nextCheckpoint) {
+      setPuzzleHintCellKey(null);
+      setPuzzleStatus({
+        type: "idle",
+        message: remainingPuzzleCells > 0
+          ? `All numbered points are connected. Fill ${remainingPuzzleCells} more ${remainingPuzzleCells === 1 ? "cell" : "cells"} to finish the board.`
+          : "The board is complete. Submit it whenever you are ready.",
+      });
+      return;
+    }
+
+    setPuzzleHintsUsed((current) => current + 1);
+    setPuzzleHintCellKey(coordsKey(nextCheckpoint.x, nextCheckpoint.y));
+    setPuzzleStatus({
+      type: "idle",
+      message: `Head toward point ${nextCheckpoint.label} next while keeping room to cover the rest of the grid.`,
+    });
+  };
+
+  const handlePathPuzzleCellClick = (x, y) => {
+    if (!puzzleStarted) {
+      setPuzzleStatus({
+        type: "error",
+        message: "Press Start before drawing your route.",
+      });
+      return;
+    }
+
+    if (puzzleReadyToSubmit) {
+      setPuzzleStatus({
+        type: "idle",
+        message: "The route is finished. Submit it or reset to try again.",
+      });
+      return;
+    }
+
+    const nextCell = { x, y };
+    const nextCellKey = coordsKey(x, y);
+    const lastCell = puzzlePath[puzzlePath.length - 1];
+
+    if (puzzlePathKeys.has(nextCellKey)) {
+      setPuzzleStatus({
+        type: "error",
+        message: "That cell is already part of your route. Use Undo if you want to backtrack.",
+      });
+      return;
+    }
+
+    if (!isAdjacentCell(lastCell, nextCell)) {
+      setPuzzleStatus({
+        type: "error",
+        message: "Move to a neighboring cell to keep the line continuous.",
+      });
+      return;
+    }
+
+    const nextRequiredCheckpoint = getVisitedCheckpointLabels(
+      puzzlePath,
+      currentPuzzleCheckpointMap,
+    ).length + 1;
+    const clickedCheckpoint = currentPuzzleCheckpointMap.get(nextCellKey);
+
+    if (clickedCheckpoint && clickedCheckpoint !== nextRequiredCheckpoint) {
+      setPuzzleStatus({
+        type: "error",
+        message: `Follow the numbered order. Point ${nextRequiredCheckpoint} should come next.`,
+      });
+      return;
+    }
+
+    const nextPath = [...puzzlePath, nextCell];
+    setPuzzlePath(nextPath);
+    setPuzzleHintCellKey(null);
+    setPathPuzzleResult(null);
+    setPuzzleShareStatus("");
+    setShowPuzzleSolution(false);
+
+    if (isPuzzleGridFilled(currentPuzzleLevel, nextPath)) {
+      setPuzzleReadyToSubmit(true);
+      setPuzzleStatus({
+        type: "success",
+        message: "Nice. The full 4x4 grid is connected. Submit to score it and view the reference solution.",
+      });
+      return;
+    }
+
+    setPuzzleStatus({
+      type: clickedCheckpoint === currentPuzzleLevel.checkpoints.length ? "success" : "idle",
+      message: clickedCheckpoint
+        ? clickedCheckpoint === currentPuzzleLevel.checkpoints.length
+          ? `All numbered points are connected. Fill ${puzzleTotalCells - nextPath.length} more ${(puzzleTotalCells - nextPath.length) === 1 ? "cell" : "cells"} to complete the board.`
+          : `Great. Point ${clickedCheckpoint} is connected. Keep filling the grid.`
+        : "Route extended. Keep connecting the points in order.",
+    });
+  };
+
+  const handleSubmitPathPuzzle = async () => {
+    if (!puzzleReadyToSubmit) {
+      setPuzzleStatus({
+        type: "error",
+        message: "Fill the entire 4x4 route before submitting your score.",
+      });
+      return;
+    }
+
+    const isValidRoute = isPuzzleGridFilled(currentPuzzleLevel, puzzlePath)
+      && didVisitCheckpointsInOrder(
+        currentPuzzleLevel,
+        puzzlePath,
+        currentPuzzleCheckpointMap,
+      );
+
+    setShowPuzzleSolution(true);
+
+    if (!isValidRoute) {
+      setPuzzleStatus({
+        type: "error",
+        message: "This attempt does not satisfy the puzzle rules. A reference solution is shown below.",
+      });
+      return;
+    }
+
+    const durationSeconds = puzzleElapsedSeconds;
+    const score = calculatePathPuzzleScore(
+      currentPuzzleLevel,
+      durationSeconds,
+      puzzleMovesUsed,
+      puzzleHintsUsed,
+    );
+
+    setLoadingAction("path-puzzle-submit");
+    setPuzzleStatus({
+      type: "loading",
+      message: "Saving your puzzle score...",
+    });
+
+    try {
+      const submission = await request("/api/v1/game/path-puzzle/submit", {
+        method: "POST",
+        body: {
+          levelId: currentPuzzleLevel.id,
+          levelName: currentPuzzleLevel.name,
+          score,
+          durationSeconds,
+          movesUsed: puzzleMovesUsed,
+          hintsUsed: puzzleHintsUsed,
+        },
+      });
+      const leaderboard = await request("/api/v1/game/path-puzzle/leaderboard?limit=5");
+
+      setPathPuzzleResult(submission);
+      setPathPuzzleLeaderboard(Array.isArray(leaderboard) ? leaderboard : []);
+      setPuzzleShareStatus("");
+      setShowPuzzleSolution(true);
+      setPuzzleStatus({
+        type: "success",
+        message: `Route solved. You earned ${submission?.score || score} points in ${formatDuration(durationSeconds)}. The reference solution is shown below.`,
+      });
+    } catch (error) {
+      setPuzzleStatus({
+        type: "error",
+        message: error.message || "The path puzzle score could not be saved.",
+      });
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleSharePathPuzzleResult = async () => {
+    if (!pathPuzzleResult || !currentUser) {
+      return;
+    }
+
+    const shareText = `${currentUser.username} solved ${pathPuzzleResult.levelName} on CampusFlow in ${formatDuration(pathPuzzleResult.durationSeconds)} for ${pathPuzzleResult.score} points.`;
+
+    try {
+      if (window.navigator?.clipboard?.writeText) {
+        await window.navigator.clipboard.writeText(shareText);
+        setPuzzleShareStatus("Copied a share-ready result to your clipboard.");
+      } else {
+        setPuzzleShareStatus(shareText);
+      }
+    } catch (_error) {
+      setPuzzleShareStatus(shareText);
+    }
+  };
+
   const renderSummary = () => (
     <div className="summary-grid">
       <button
@@ -1270,6 +1896,10 @@ function App() {
           <span className="dashboard-hero-label">Welcome back</span>
           <strong>{currentUser?.username || "CampusFlow user"}</strong>
           <p>{workspaceNotice.message}</p>
+          <div className="dashboard-badge-row">
+            <span className="panel-chip">Daily quiz live</span>
+            <span className="panel-chip">{quizLeaderboard.length} players ranked</span>
+          </div>
         </div>
       </section>
 
@@ -1303,34 +1933,7 @@ function App() {
               <p>Update your identity, privacy settings, and preferences.</p>
             </button>
           </div>
-        </article>
-
-        <article className="data-panel">
-          <div className="panel-header">
-            <h3>Next events</h3>
-            <span className="panel-chip">Upcoming</span>
-          </div>
-          <div className="list-stack">
-            {events.length === 0 ? (
-              <p className="empty-copy">No events available yet.</p>
-            ) : (
-              events.slice(0, 3).map((event) => (
-                <div className="list-card" key={event.id}>
-                  <strong>{event.title}</strong>
-                  <p>{event.location}</p>
-                  <small>{formatDateTime(event.eventDate)}</small>
-                </div>
-              ))
-            )}
-          </div>
-        </article>
-
-        <article className="data-panel">
-          <div className="panel-header">
-            <h3>Quick actions</h3>
-            <span className="panel-chip">Shortcuts</span>
-          </div>
-          <div className="action-grid">
+          <div className="dashboard-quick-strip">
             <button type="button" className="secondary tile-button" onClick={() => setActiveView("feed")}>
               Community feed
             </button>
@@ -1340,15 +1943,351 @@ function App() {
             <button type="button" className="secondary tile-button" onClick={() => setActiveView("events")}>
               Event RSVP
             </button>
-            <button type="button" className="secondary tile-button" onClick={() => setActiveView("profile")}>
-              Profile settings
-            </button>
-            <button type="button" className="secondary tile-button" onClick={() => setActiveView("menu")}>
-              Open menu
-            </button>
             <button type="button" className="secondary tile-button" onClick={() => loadWorkspace(currentUser)}>
               Refresh workspace
             </button>
+          </div>
+        </article>
+
+        <article className="data-panel">
+          <div className="panel-header">
+            <h3>Daily quiz</h3>
+            <span className="panel-chip">{dailyQuiz.quizDate || "Today"}</span>
+          </div>
+          {currentQuizQuestion ? (
+            <>
+              <div className="quiz-progress-row">
+                <span>Question {quizQuestionIndex + 1} of {dailyQuiz.questions.length}</span>
+                <span>{answeredQuizCount}/{dailyQuiz.questions.length} answered</span>
+              </div>
+
+              <div className="quiz-question-card">
+                <span className="feature-tag">{currentQuizQuestion.category}</span>
+                <strong>{currentQuizQuestion.prompt}</strong>
+              </div>
+
+              <div className="quiz-options">
+                {currentQuizQuestion.options.map((option, optionIndex) => (
+                  <button
+                    key={option}
+                    type="button"
+                    className={`quiz-option ${quizAnswers[currentQuizQuestion.id] === optionIndex ? "quiz-option-selected" : ""}`}
+                    onClick={() => handleQuizOptionSelect(currentQuizQuestion.id, optionIndex)}
+                  >
+                    <span className="quiz-option-index">{String.fromCharCode(65 + optionIndex)}</span>
+                    <span>{option}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="action-inline quiz-action-row">
+                <button
+                  type="button"
+                  className="secondary inline-button"
+                  onClick={handleQuizRestart}
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  className="secondary inline-button"
+                  onClick={() => setQuizQuestionIndex((current) => Math.max(0, current - 1))}
+                  disabled={quizQuestionIndex === 0}
+                >
+                  Previous
+                </button>
+                {quizQuestionIndex < dailyQuiz.questions.length - 1 ? (
+                  <button
+                    type="button"
+                    className="secondary inline-button"
+                    onClick={() => setQuizQuestionIndex((current) => Math.min(dailyQuiz.questions.length - 1, current + 1))}
+                  >
+                    Next
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSubmitQuiz}
+                    disabled={loadingAction === "quiz-submit"}
+                  >
+                    {loadingAction === "quiz-submit" ? "Submitting..." : "Submit quiz"}
+                  </button>
+                )}
+              </div>
+
+              {quizResult ? (
+                <div className="quiz-result-card">
+                  <strong>{quizResult.score} / {quizResult.totalQuestions * 20} points</strong>
+                  <p>
+                    {quizResult.correctAnswers} correct answers, {quizResult.totalPoints} total points,
+                    best score {quizResult.bestScore}.
+                  </p>
+                </div>
+              ) : null}
+
+              <div className={`status-banner status-${quizStatus.type}`} role="status">
+                {quizStatus.message}
+              </div>
+            </>
+          ) : (
+            <p className="empty-copy">The quiz challenge will appear here when it is loaded from the backend.</p>
+          )}
+        </article>
+
+        <article className="data-panel">
+          <div className="panel-header">
+            <h3>Leaderboard</h3>
+            <span className="panel-chip">Top players</span>
+          </div>
+          <div className="list-stack">
+            {quizLeaderboard.length === 0 ? (
+              <p className="empty-copy">Leaderboard data will appear here after scores are recorded.</p>
+            ) : (
+              quizLeaderboard.map((entry, index) => (
+                <div className="list-card leaderboard-card" key={entry.userId}>
+                  <div className="leaderboard-rank">#{index + 1}</div>
+                  <div className="leaderboard-copy">
+                    <strong>{entry.username}</strong>
+                    <p>{formatRole(entry.role)} · {entry.totalPoints} total points</p>
+                    <small>Best score {entry.bestScore} · {entry.attempts} attempts</small>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </article>
+      </div>
+
+      <div className="dashboard-games-grid">
+        <article className="data-panel puzzle-panel">
+          <div className="panel-header">
+            <div>
+              <h3>Path puzzle challenge</h3>
+              <p className="card-copy">
+                Fill the whole 4x4 grid with one continuous path while visiting the numbered checkpoints in order.
+              </p>
+            </div>
+            <span className="panel-chip">Simpler 4x4 mode</span>
+          </div>
+
+          <div className="puzzle-topbar">
+            <label className="field field-inline">
+              <span>Level</span>
+              <select
+                value={selectedPuzzleLevelId}
+                onChange={(event) => setSelectedPuzzleLevelId(event.target.value)}
+              >
+                {pathPuzzleLevels.map((level) => (
+                  <option key={level.id} value={level.id}>
+                    {level.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="puzzle-stats-strip">
+              <div className="puzzle-stat-card">
+                <span>Time</span>
+                <strong>{formatDuration(puzzleElapsedSeconds)}</strong>
+              </div>
+              <div className="puzzle-stat-card">
+                <span>Moves</span>
+                <strong>{puzzleMovesUsed}</strong>
+              </div>
+              <div className="puzzle-stat-card">
+                <span>Hints</span>
+                <strong>{puzzleHintsUsed}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="puzzle-level-card">
+            <strong>{currentPuzzleLevel.name}</strong>
+            <p>{currentPuzzleLevel.description}</p>
+            <small>{currentPuzzleLevel.checkpoints.length} checkpoints · {currentPuzzleLevel.size}x{currentPuzzleLevel.size} grid</small>
+          </div>
+
+          <p className="puzzle-helper-copy">
+            More than one answer can be correct. The goal is to keep the route connected and fill every tile.
+          </p>
+
+          <div className="puzzle-controls">
+            <button
+              type="button"
+              onClick={handleStartPathPuzzle}
+            >
+              {puzzleStarted ? "Restart level" : "Start"}
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={handleUndoPathPuzzleMove}
+              disabled={!puzzleStarted || puzzlePath.length <= 1}
+            >
+              Undo
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={handlePathPuzzleHint}
+              disabled={!puzzleStarted}
+            >
+              Hint
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={handleResetPathPuzzle}
+            >
+              Reset
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmitPathPuzzle}
+              disabled={!puzzleReadyToSubmit || loadingAction === "path-puzzle-submit"}
+            >
+              {loadingAction === "path-puzzle-submit" ? "Submitting..." : "Submit route"}
+            </button>
+          </div>
+
+          <div
+            className="puzzle-board"
+            style={{ gridTemplateColumns: `repeat(${currentPuzzleLevel.size}, minmax(0, 1fr))` }}
+          >
+            {Array.from({ length: currentPuzzleLevel.size }).flatMap((_, y) =>
+              Array.from({ length: currentPuzzleLevel.size }).map((__, x) => {
+                const cellKey = coordsKey(x, y);
+                const checkpointLabel = currentPuzzleCheckpointMap.get(cellKey);
+                const isActive = puzzlePathKeys.has(cellKey);
+                const isHinted = puzzleHintCellKey === cellKey;
+                const isStartCell = currentPuzzleLevel.checkpoints[0].x === x && currentPuzzleLevel.checkpoints[0].y === y;
+                const isFinalCheckpoint = checkpointLabel === currentPuzzleLevel.checkpoints.length;
+
+                return (
+                  <button
+                    key={cellKey}
+                    type="button"
+                    className={[
+                      "puzzle-cell",
+                      checkpointLabel ? "puzzle-cell-checkpoint" : "",
+                      isActive ? "puzzle-cell-active" : "",
+                      isHinted ? "puzzle-cell-hint" : "",
+                      isStartCell ? "puzzle-cell-start" : "",
+                      isFinalCheckpoint ? "puzzle-cell-finish" : "",
+                    ].filter(Boolean).join(" ")}
+                    onClick={() => handlePathPuzzleCellClick(x, y)}
+                  >
+                    {checkpointLabel ? <span className="puzzle-cell-label">{checkpointLabel}</span> : null}
+                  </button>
+                );
+              }))}
+          </div>
+
+          <div className={`status-banner status-${puzzleStatus.type}`} role="status">
+            {puzzleStatus.message}
+          </div>
+
+          {pathPuzzleResult ? (
+            <div className="puzzle-result-card">
+              <div>
+                <strong>{pathPuzzleResult.score} points</strong>
+                <p>
+                  {pathPuzzleResult.levelName} solved in {formatDuration(pathPuzzleResult.durationSeconds)}
+                  {" "}with {pathPuzzleResult.movesUsed} moves and {pathPuzzleResult.hintsUsed} hints.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="secondary"
+                onClick={handleSharePathPuzzleResult}
+              >
+                Share result
+              </button>
+            </div>
+          ) : null}
+
+          {puzzleShareStatus ? (
+            <div className="puzzle-share-note">
+              {puzzleShareStatus}
+            </div>
+          ) : null}
+
+          {showPuzzleSolution ? (
+            <div className="puzzle-solution-card">
+              <div className="panel-header">
+                <div>
+                  <h3>Reference solution</h3>
+                  <p className="card-copy">
+                    This is one valid answer. Your own route can be different as long as it fills the grid and respects the checkpoint order.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className="puzzle-board puzzle-board-reference"
+                style={{ gridTemplateColumns: `repeat(${currentPuzzleLevel.size}, minmax(0, 1fr))` }}
+              >
+                {Array.from({ length: currentPuzzleLevel.size }).flatMap((_, y) =>
+                  Array.from({ length: currentPuzzleLevel.size }).map((__, x) => {
+                    const cellKey = coordsKey(x, y);
+                    const checkpointLabel = currentPuzzleCheckpointMap.get(cellKey);
+                    const solutionStep = currentPuzzleSolutionStepMap.get(cellKey);
+
+                    return (
+                      <div
+                        key={`solution-${cellKey}`}
+                        className={[
+                          "puzzle-cell",
+                          "puzzle-cell-reference",
+                          currentPuzzleSolutionKeys.has(cellKey) ? "puzzle-cell-active" : "",
+                          checkpointLabel ? "puzzle-cell-checkpoint" : "",
+                        ].filter(Boolean).join(" ")}
+                      >
+                        <span className="puzzle-cell-step">{solutionStep}</span>
+                        {checkpointLabel ? (
+                          <small className="puzzle-cell-badge">#{checkpointLabel}</small>
+                        ) : null}
+                      </div>
+                    );
+                  }))}
+              </div>
+            </div>
+          ) : null}
+        </article>
+
+        <article className="data-panel">
+          <div className="panel-header">
+            <h3>Path puzzle scoreboard</h3>
+            <span className="panel-chip">Fastest clean routes</span>
+          </div>
+
+          <div className="list-stack">
+            {pathPuzzleLeaderboard.length === 0 ? (
+              <p className="empty-copy">Scores will appear here once players begin finishing the puzzle routes.</p>
+            ) : (
+              pathPuzzleLeaderboard.map((entry, index) => (
+                <div className="list-card leaderboard-card" key={`${entry.userId}-${entry.completedAt}`}>
+                  <div className="leaderboard-rank">#{index + 1}</div>
+                  <div className="leaderboard-copy">
+                    <strong>{entry.username}</strong>
+                    <p>{entry.levelName} · {entry.score} pts</p>
+                    <small>
+                      {formatRole(entry.role)} · {formatDuration(entry.durationSeconds)} · {entry.movesUsed} moves · {entry.hintsUsed} hints
+                    </small>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="puzzle-info-card">
+            <strong>How scoring works</strong>
+            <p>Higher levels score more, while slower times, extra moves, and hints reduce the final total.</p>
+            <ul className="notes-list">
+              <li>Use Undo to safely backtrack without resetting the whole board.</li>
+              <li>Hints highlight the next correct cell if you drift from the intended route.</li>
+              <li>Submit only after you connect every checkpoint and reach the final point.</li>
+            </ul>
           </div>
         </article>
       </div>
