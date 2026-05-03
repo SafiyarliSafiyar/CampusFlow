@@ -4,6 +4,7 @@ import com.campusflow.application.user.dto.RegisterUserInput;
 import com.campusflow.application.user.usecase.RegisterUserUseCase;
 import com.campusflow.application.user.usecase.SendOtpUseCase;
 import com.campusflow.domain.user.exception.EmailAlreadyExistsException;
+import com.campusflow.domain.user.exception.InvalidEmailDomainException;
 import com.campusflow.domain.user.model.User;
 import com.campusflow.domain.user.model.UserRole;
 import com.campusflow.domain.user.model.VerificationStatus;
@@ -29,6 +30,11 @@ public class RegisterUserService implements RegisterUserUseCase {
 
     @Override
     public User register(RegisterUserInput input) {
+        String emailLower = input.getEmail().toLowerCase().trim();
+        if (!emailLower.endsWith("@ada.edu.az")) {
+            throw new InvalidEmailDomainException(input.getEmail());
+        }
+
         User existingUser = userRepositoryPort.findByEmail(input.getEmail()).orElse(null);
 
         if (existingUser != null) {

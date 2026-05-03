@@ -47,6 +47,8 @@ public class EventController {
                 request.getDescription(),
                 request.getEventDate(),
                 request.getLocation(),
+                request.getLatitude(),
+                request.getLongitude(),
                 request.getCapacity(),
                 organizerId
         ));
@@ -61,6 +63,8 @@ public class EventController {
                 request.getDescription(),
                 request.getEventDate(),
                 request.getLocation(),
+                request.getLatitude(),
+                request.getLongitude(),
                 request.getCapacity()
         ));
         return ResponseEntity.ok(toResponse(result));
@@ -154,6 +158,8 @@ public class EventController {
                 result.getDescription(),
                 result.getEventDate(),
                 result.getLocation(),
+                result.getLatitude(),
+                result.getLongitude(),
                 result.getCapacity(),
                 result.getRsvpCount(),
                 result.getOrganizerId(),

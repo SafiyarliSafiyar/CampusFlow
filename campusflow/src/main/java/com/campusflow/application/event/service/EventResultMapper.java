@@ -14,6 +14,8 @@ final class EventResultMapper {
                 event.getDescription(),
                 event.getEventDate(),
                 event.getLocation(),
+                event.getLatitude(),
+                event.getLongitude(),
                 event.getCapacity(),
                 event.getRsvpCount(),
                 event.getOrganizerId(),

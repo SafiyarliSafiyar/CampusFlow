@@ -13,7 +13,12 @@ final class MessageResultMapper {
                 message.getStudyGroupId(),
                 message.getSenderId(),
                 message.getSenderUsername(),
+                (message.getType() == null ? null : message.getType().name()),
                 message.getContent(),
+                message.getAttachmentUrl(),
+                message.getAttachmentName(),
+                message.getAttachmentContentType(),
+                message.getAttachmentSizeBytes(),
                 message.getSentAt()
         );
     }

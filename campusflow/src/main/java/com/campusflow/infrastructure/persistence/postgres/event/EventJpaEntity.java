@@ -37,6 +37,12 @@ public class EventJpaEntity {
     @Column(nullable = false)
     private String location;
 
+    @Column
+    private Double latitude;
+
+    @Column
+    private Double longitude;
+
     @Column(nullable = false)
     private int capacity;
 
@@ -60,6 +66,8 @@ public class EventJpaEntity {
                 .description(description)
                 .eventDate(eventDate)
                 .location(location)
+                .latitude(latitude)
+                .longitude(longitude)
                 .capacity(capacity)
                 .rsvpCount(rsvpCount)
                 .organizerId(organizerId)
@@ -75,6 +83,8 @@ public class EventJpaEntity {
         entity.setDescription(event.getDescription());
         entity.setEventDate(event.getEventDate());
         entity.setLocation(event.getLocation());
+        entity.setLatitude(event.getLatitude());
+        entity.setLongitude(event.getLongitude());
         entity.setCapacity(event.getCapacity());
         entity.setRsvpCount(event.getRsvpCount());
         entity.setOrganizerId(event.getOrganizerId());

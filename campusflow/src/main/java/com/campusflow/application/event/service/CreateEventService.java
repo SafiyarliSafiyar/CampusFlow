@@ -23,6 +23,8 @@ public class CreateEventService implements CreateEventUseCase {
                 .description(input.getDescription())
                 .eventDate(input.getEventDate())
                 .location(input.getLocation())
+                .latitude(input.getLatitude())
+                .longitude(input.getLongitude())
                 .capacity(input.getCapacity())
                 .rsvpCount(0)
                 .organizerId(input.getOrganizerId())

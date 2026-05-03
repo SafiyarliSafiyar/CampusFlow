@@ -9,6 +9,11 @@ public class MessageResult {
     Long studyGroupId;
     Long senderId;
     String senderUsername;
+    String type;
     String content;
+    String attachmentUrl;
+    String attachmentName;
+    String attachmentContentType;
+    Long attachmentSizeBytes;
     LocalDateTime sentAt;
 }

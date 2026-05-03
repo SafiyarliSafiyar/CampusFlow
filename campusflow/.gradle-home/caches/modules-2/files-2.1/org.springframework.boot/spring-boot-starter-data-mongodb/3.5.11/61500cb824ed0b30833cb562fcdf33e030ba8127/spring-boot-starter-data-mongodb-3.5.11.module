@@ -1,0 +1,146 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "org.springframework.boot",
+    "module": "spring-boot-starter-data-mongodb",
+    "version": "3.5.11",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.4"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "org.springframework.boot",
+          "module": "spring-boot-starter",
+          "version": {
+            "requires": "3.5.11"
+          }
+        },
+        {
+          "group": "org.mongodb",
+          "module": "mongodb-driver-sync",
+          "version": {
+            "requires": "5.5.2"
+          }
+        },
+        {
+          "group": "org.springframework.data",
+          "module": "spring-data-mongodb",
+          "version": {
+            "requires": "4.5.9"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "spring-boot-starter-data-mongodb-3.5.11.jar",
+          "url": "spring-boot-starter-data-mongodb-3.5.11.jar",
+          "size": 4777,
+          "sha512": "73056c6b51a23160cc1b95672892ced0ae219fa364e59c2f9f28a60063897e5703e7986228a75a2634408e7ee13aa5c860d6b032c15ed09d47e1e8b07fa00850",
+          "sha256": "0cc746d7ed1dd2d6eebb7aca66bee7d39dd6dc43e69bcb956943c711a9b96219",
+          "sha1": "0d534178deacb4ccbb3e9046c87e227ca8e6791b",
+          "md5": "c1de7b49d28c0a9a729a16be5506eb01"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.springframework.boot",
+          "module": "spring-boot-starter",
+          "version": {
+            "requires": "3.5.11"
+          }
+        },
+        {
+          "group": "org.mongodb",
+          "module": "mongodb-driver-sync",
+          "version": {
+            "requires": "5.5.2"
+          }
+        },
+        {
+          "group": "org.springframework.data",
+          "module": "spring-data-mongodb",
+          "version": {
+            "requires": "4.5.9"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "spring-boot-starter-data-mongodb-3.5.11.jar",
+          "url": "spring-boot-starter-data-mongodb-3.5.11.jar",
+          "size": 4777,
+          "sha512": "73056c6b51a23160cc1b95672892ced0ae219fa364e59c2f9f28a60063897e5703e7986228a75a2634408e7ee13aa5c860d6b032c15ed09d47e1e8b07fa00850",
+          "sha256": "0cc746d7ed1dd2d6eebb7aca66bee7d39dd6dc43e69bcb956943c711a9b96219",
+          "sha1": "0d534178deacb4ccbb3e9046c87e227ca8e6791b",
+          "md5": "c1de7b49d28c0a9a729a16be5506eb01"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "spring-boot-starter-data-mongodb-3.5.11-javadoc.jar",
+          "url": "spring-boot-starter-data-mongodb-3.5.11-javadoc.jar",
+          "size": 4777,
+          "sha512": "73056c6b51a23160cc1b95672892ced0ae219fa364e59c2f9f28a60063897e5703e7986228a75a2634408e7ee13aa5c860d6b032c15ed09d47e1e8b07fa00850",
+          "sha256": "0cc746d7ed1dd2d6eebb7aca66bee7d39dd6dc43e69bcb956943c711a9b96219",
+          "sha1": "0d534178deacb4ccbb3e9046c87e227ca8e6791b",
+          "md5": "c1de7b49d28c0a9a729a16be5506eb01"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "spring-boot-starter-data-mongodb-3.5.11-sources.jar",
+          "url": "spring-boot-starter-data-mongodb-3.5.11-sources.jar",
+          "size": 4777,
+          "sha512": "73056c6b51a23160cc1b95672892ced0ae219fa364e59c2f9f28a60063897e5703e7986228a75a2634408e7ee13aa5c860d6b032c15ed09d47e1e8b07fa00850",
+          "sha256": "0cc746d7ed1dd2d6eebb7aca66bee7d39dd6dc43e69bcb956943c711a9b96219",
+          "sha1": "0d534178deacb4ccbb3e9046c87e227ca8e6791b",
+          "md5": "c1de7b49d28c0a9a729a16be5506eb01"
+        }
+      ]
+    }
+  ]
+}

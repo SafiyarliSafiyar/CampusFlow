@@ -14,6 +14,8 @@ public class Event {
     private final String description;
     private final LocalDateTime eventDate;
     private final String location;
+    private final Double latitude;
+    private final Double longitude;
     private final int capacity;
     private final int rsvpCount;
     private final Long organizerId;

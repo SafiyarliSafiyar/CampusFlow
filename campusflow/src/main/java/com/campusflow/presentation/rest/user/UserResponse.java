@@ -8,6 +8,10 @@ public class UserResponse {
     Long id;
     String username;
     String email;
+    String major;
+    String interests;
+    String profilePhotoUrl;
+    String visibility;
     String role;
     LocalDateTime createdAt;
 }

@@ -1,0 +1,117 @@
+:root {
+  color-scheme: light;
+  --font-display: "Sora", "Avenir Next", "Segoe UI", sans-serif;
+  --font-body: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+  --bg-1: #f4f5ff;
+  --bg-2: #eff2ff;
+  --bg-3: #edf7ff;
+  --panel: rgba(255, 255, 255, 0.84);
+  --panel-alt: rgba(247, 250, 255, 0.92);
+  --surface-quiet: rgba(243, 246, 255, 0.88);
+  --border-soft: rgba(126, 139, 199, 0.18);
+  --border-strong: rgba(114, 127, 198, 0.24);
+  --text-1: #17203f;
+  --text-2: #2f3b63;
+  --text-3: #647091;
+  --accent-1: #6975f2;
+  --accent-2: #8a5eff;
+  --ring: rgba(104, 117, 242, 0.22);
+  --shadow-md: 0 20px 42px rgba(41, 52, 115, 0.08);
+  --shadow-lg: 0 28px 64px rgba(41, 52, 115, 0.1);
+}
+
+body[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-1: #0f1326;
+  --bg-2: #131936;
+  --bg-3: #101c35;
+  --panel: rgba(19, 26, 52, 0.84);
+  --panel-alt: rgba(22, 31, 61, 0.92);
+  --surface-quiet: rgba(29, 38, 73, 0.88);
+  --border-soft: rgba(134, 149, 230, 0.18);
+  --border-strong: rgba(144, 159, 240, 0.24);
+  --text-1: #eef2ff;
+  --text-2: #d8def8;
+  --text-3: #aab4dc;
+  --accent-1: #93a1ff;
+  --accent-2: #be9cff;
+  --ring: rgba(147, 161, 255, 0.24);
+  --shadow-md: 0 22px 52px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 28px 72px rgba(0, 0, 0, 0.34);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  position: relative;
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: var(--font-body);
+  color: var(--text-1);
+  background:
+    radial-gradient(circle at top left, rgba(137, 94, 255, 0.12), transparent 24%),
+    radial-gradient(circle at 82% 12%, rgba(110, 168, 255, 0.16), transparent 20%),
+    linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 56%, var(--bg-3) 100%);
+  overflow-x: hidden;
+}
+
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::before {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.22), transparent 85%);
+  opacity: 0.3;
+}
+
+body::after {
+  background:
+    radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.38), transparent 18%),
+    radial-gradient(circle at 84% 82%, rgba(255, 255, 255, 0.3), transparent 20%);
+  opacity: 0.42;
+}
+
+body[data-theme="dark"]::before {
+  opacity: 0.18;
+}
+
+body[data-theme="dark"]::after {
+  opacity: 0.16;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+#root {
+  position: relative;
+  min-height: 100vh;
+  z-index: 1;
+}
+
+::selection {
+  background: rgba(118, 127, 255, 0.22);
+}

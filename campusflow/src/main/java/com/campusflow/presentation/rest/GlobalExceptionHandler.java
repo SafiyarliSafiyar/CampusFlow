@@ -18,6 +18,7 @@ import com.campusflow.domain.studygroup.exception.StudyGroupNotFoundException;
 import com.campusflow.domain.user.exception.EmailAlreadyExistsException;
 import com.campusflow.domain.user.exception.EmailNotVerifiedException;
 import com.campusflow.domain.user.exception.InvalidCredentialsException;
+import com.campusflow.domain.user.exception.InvalidEmailDomainException;
 import com.campusflow.domain.user.exception.InvalidOtpException;
 import com.campusflow.domain.user.exception.OtpNotFoundException;
 import com.campusflow.domain.user.exception.UserNotFoundException;
@@ -56,6 +57,14 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidEmailDomainException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidEmailDomain(
+            InvalidEmailDomainException ex,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
     @ExceptionHandler(InvalidCredentialsException.class)
