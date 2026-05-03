@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import "./App.css";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL
@@ -98,6 +98,7 @@ const emptyBackendProfileForm = {
 const emptyPreferenceProfile = {
   major: "",
   interests: "",
+  profilePhotoUrl: "",
   privacy: "Campus only",
   showEmail: false,
   notificationsEnabled: true,
@@ -365,6 +366,9 @@ function App() {
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [messageStatus, setMessageStatus] = useState("Select a study group to open chat.");
+  const [unreadGroups, setUnreadGroups] = useState(new Set());
+  const [typingByGroup, setTypingByGroup] = useState({});
+  const [readReceiptsByMessageId, setReadReceiptsByMessageId] = useState({});
   const [feedSearch, setFeedSearch] = useState("");
   const [feedTypeFilter, setFeedTypeFilter] = useState("ALL");
   const [eventSearch, setEventSearch] = useState("");
@@ -374,7 +378,22 @@ function App() {
   const [studyGroupForm, setStudyGroupForm] = useState(emptyStudyGroupForm);
   const [backendProfileForm, setBackendProfileForm] = useState(emptyBackendProfileForm);
   const [profilePreferences, setProfilePreferences] = useState(emptyPreferenceProfile);
+  const [profilePhotoFile, setProfilePhotoFile] = useState(null);
+  const [profilePhotoPreviewUrl, setProfilePhotoPreviewUrl] = useState("");
+  const [profilePhotoUploadStatus, setProfilePhotoUploadStatus] = useState("");
+  const [auditLogEntries, setAuditLogEntries] = useState([]);
+  const [auditLogStatus, setAuditLogStatus] = useState("Audit log is available to moderators and admins.");
+  const [moderationQueueEntries, setModerationQueueEntries] = useState([]);
+  const [moderationQueueStatus, setModerationQueueStatus] = useState("Moderation queue is available to moderators and admins.");
+  const [serverNotifications, setServerNotifications] = useState([]);
+  const [serverNotificationsStatus, setServerNotificationsStatus] = useState("Notifications are stored in your account.");
+  const [profileCompleteness, setProfileCompleteness] = useState(null);
+  const [profileCompletenessStatus, setProfileCompletenessStatus] = useState("");
+  const [pushStatus, setPushStatus] = useState("");
   const [messageForm, setMessageForm] = useState(emptyMessageForm);
+  const [chatFile, setChatFile] = useState(null);
+  const [chatFilePreviewUrl, setChatFilePreviewUrl] = useState("");
+  const [chatFileStatus, setChatFileStatus] = useState("");
   const [resourceForm, setResourceForm] = useState(emptyResourceForm);
   const [sharedResources, setSharedResources] = useState({});
   const [postInteractions, setPostInteractions] = useState({});
@@ -407,6 +426,9 @@ function App() {
   const [pathPuzzleResult, setPathPuzzleResult] = useState(null);
   const [puzzleShareStatus, setPuzzleShareStatus] = useState("");
   const [showPuzzleSolution, setShowPuzzleSolution] = useState(false);
+
+  const socketRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
   const selectedGroup = studyGroups.find((group) => group.id === selectedGroupId) || null;
   const selectedGroupResources = sharedResources[selectedGroupId] || [];
@@ -583,6 +605,226 @@ function App() {
     return data;
   };
 
+  const base64UrlToUint8Array = (base64UrlString) => {
+    const padding = "=".repeat((4 - (base64UrlString.length % 4)) % 4);
+    const base64 = (base64UrlString + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; i += 1) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  };
+
+  const enableWebPush = async () => {
+    if (!currentUser) {
+      setPushStatus("Log in first to enable notifications.");
+      return;
+    }
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setPushStatus("This browser does not support Web Push.");
+      return;
+    }
+
+    setPushStatus("Requesting permission...");
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      setPushStatus("Notification permission was not granted.");
+      return;
+    }
+
+    setPushStatus("Preparing subscription...");
+    const keyData = await request("/api/v1/push/vapid-public-key");
+    const publicKey = keyData?.publicKey;
+    if (!publicKey) {
+      setPushStatus("Server VAPID public key is not configured.");
+      return;
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    const existing = await registration.pushManager.getSubscription();
+    const subscription = existing || await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: base64UrlToUint8Array(publicKey),
+    });
+
+    await request("/api/v1/push/subscribe", {
+      method: "POST",
+      body: subscription.toJSON(),
+    });
+
+    setPushStatus("Web Push enabled for this browser.");
+  };
+
+  const sendTestWebPush = async () => {
+    if (!currentUser) {
+      return;
+    }
+    setPushStatus("Sending test push...");
+    try {
+      const result = await request("/api/v1/push/test", {
+        method: "POST",
+        body: { message: "Test notification from CampusFlow" },
+      });
+      setPushStatus(result?.message || "Push sent (if subscribed).");
+    } catch (error) {
+      setPushStatus(error.message || "Could not send test push.");
+    }
+  };
+
+  const connectToGroupSocket = (groupId) => {
+    if (socketRef.current) {
+      socketRef.current.close();
+      socketRef.current = null;
+    }
+
+    if (!groupId) {
+      return;
+    }
+
+    const token = window.localStorage.getItem("campusflowToken");
+    if (!token) {
+      return;
+    }
+
+    const httpBaseUrl = API_BASE_URL || "http://localhost:8080";
+    const wsBaseUrl = httpBaseUrl.replace(/^http/, "ws");
+    const url = `${wsBaseUrl}/ws/study-groups/${groupId}?token=${encodeURIComponent(token)}`;
+
+    const ws = new WebSocket(url);
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (!data || typeof data !== "object") {
+          return;
+        }
+
+        if (data.type === "message") {
+          setMessages((prev) => {
+            if (prev.some((message) => message.id === data.id)) {
+              return prev;
+            }
+            return [...prev, data];
+          });
+
+          setSelectedGroupId((currentId) => {
+            if (currentId !== data.studyGroupId) {
+              setUnreadGroups((prevUnread) => new Set([...prevUnread, data.studyGroupId]));
+            }
+            return currentId;
+          });
+
+          setSelectedGroupId((currentId) => {
+            if (currentId === data.studyGroupId && data.id) {
+              try {
+                ws.send(JSON.stringify({ type: "read", messageId: data.id }));
+              } catch (_e) {
+                // ignore
+              }
+            }
+            return currentId;
+          });
+        } else if (data.type === "typing") {
+          const group = data.studyGroupId;
+          if (group == null) {
+            return;
+          }
+          setTypingByGroup((current) => {
+            const existing = current[group] || {};
+            const next = { ...existing };
+            if (data.isTyping) {
+              next[data.userId] = data.username || "Someone";
+            } else {
+              delete next[data.userId];
+            }
+            return { ...current, [group]: next };
+          });
+        } else if (data.type === "read") {
+          if (!data.messageId || !data.userId) {
+            return;
+          }
+          setReadReceiptsByMessageId((current) => {
+            const existing = current[data.messageId] || [];
+            if (existing.includes(data.userId)) {
+              return current;
+            }
+            return { ...current, [data.messageId]: [...existing, data.userId] };
+          });
+        }
+      } catch (_e) {
+        // ignore parse errors
+      }
+    };
+
+    socketRef.current = ws;
+  };
+
+  const disconnectFromGroupSocket = () => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    if (socketRef.current) {
+      try {
+        socketRef.current.close();
+      } catch (_e) {
+        // ignore
+      }
+      socketRef.current = null;
+    }
+  };
+
+  const sendTyping = (isTyping) => {
+    if (!selectedGroupId || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    try {
+      socketRef.current.send(JSON.stringify({ type: "typing", isTyping }));
+    } catch (_e) {
+      // ignore
+    }
+  };
+
+  const handleMessageInputChange = (event) => {
+    handleFormChange(setMessageForm)(event);
+
+    sendTyping(true);
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = setTimeout(() => {
+      sendTyping(false);
+      typingTimeoutRef.current = null;
+    }, 1500);
+  };
+
+  useEffect(() => {
+    if (activeView !== "groups") {
+      disconnectFromGroupSocket();
+    }
+  }, [activeView]);
+
+  useEffect(() => {
+    return () => disconnectFromGroupSocket();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedGroupId || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    messages.forEach((message) => {
+      if (!message?.id || message.studyGroupId !== selectedGroupId) {
+        return;
+      }
+      try {
+        socketRef.current.send(JSON.stringify({ type: "read", messageId: message.id }));
+      } catch (_e) {
+        // ignore
+      }
+    });
+  }, [messages, selectedGroupId]);
+
   const updateStoredUser = (nextUser) => {
     setCurrentUser(nextUser);
     if (nextUser) {
@@ -591,6 +833,108 @@ function App() {
       window.localStorage.removeItem("campusflowUser");
     }
   };
+
+  const loadAuditLog = async () => {
+    if (!currentUser || (currentUser.role !== "MODERATOR" && currentUser.role !== "ADMIN")) {
+      setAuditLogEntries([]);
+      setAuditLogStatus("Audit log is available to moderators and admins.");
+      return;
+    }
+
+    setAuditLogStatus("Loading audit log...");
+    try {
+      const data = await request("/api/v1/moderation/audit?limit=50");
+      setAuditLogEntries(Array.isArray(data) ? data : []);
+      setAuditLogStatus("Audit log synced.");
+    } catch (error) {
+      setAuditLogEntries([]);
+      setAuditLogStatus(error.message || "Could not load audit log.");
+    }
+  };
+
+  const loadModerationQueue = async () => {
+    if (!currentUser || (currentUser.role !== "MODERATOR" && currentUser.role !== "ADMIN")) {
+      setModerationQueueEntries([]);
+      setModerationQueueStatus("Moderation queue is available to moderators and admins.");
+      return;
+    }
+
+    setModerationQueueStatus("Loading moderation queue...");
+    try {
+      const data = await request("/api/v1/moderation/queue?limit=50");
+      setModerationQueueEntries(Array.isArray(data) ? data : []);
+      setModerationQueueStatus("Moderation queue synced.");
+    } catch (error) {
+      setModerationQueueEntries([]);
+      setModerationQueueStatus(error.message || "Could not load moderation queue.");
+    }
+  };
+
+  const loadServerNotifications = async () => {
+    if (!currentUser) {
+      setServerNotifications([]);
+      setServerNotificationsStatus("Sign in to see notifications.");
+      return;
+    }
+
+    setServerNotificationsStatus("Loading notifications...");
+    try {
+      const data = await request("/api/v1/notifications?limit=50");
+      setServerNotifications(Array.isArray(data) ? data : []);
+      setServerNotificationsStatus("Notifications synced.");
+    } catch (error) {
+      setServerNotifications([]);
+      setServerNotificationsStatus(error.message || "Could not load notifications.");
+    }
+  };
+
+  const markAllServerNotificationsRead = async () => {
+    if (!currentUser) {
+      return;
+    }
+
+    setServerNotificationsStatus("Marking notifications as read...");
+    try {
+      await request("/api/v1/notifications/read-all", { method: "POST" });
+      await loadServerNotifications();
+    } catch (error) {
+      setServerNotificationsStatus(error.message || "Could not mark notifications as read.");
+    }
+  };
+
+  const loadProfileCompleteness = async () => {
+    if (!currentUser) {
+      setProfileCompleteness(null);
+      setProfileCompletenessStatus("");
+      return;
+    }
+
+    setProfileCompletenessStatus("Checking profile completeness...");
+    try {
+      const data = await request("/api/v1/users/profile/completeness");
+      setProfileCompleteness(data);
+      setProfileCompletenessStatus("");
+    } catch (error) {
+      setProfileCompleteness(null);
+      setProfileCompletenessStatus(error.message || "Could not check profile completeness.");
+    }
+  };
+
+  useEffect(() => {
+    if (activeView === "notifications") {
+      loadAuditLog();
+      loadModerationQueue();
+      loadServerNotifications();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView, currentUser?.role]);
+
+  useEffect(() => {
+    if (activeView === "profile") {
+      loadProfileCompleteness();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView, currentUser?.userId]);
 
   const loadMessages = async (groupId) => {
     if (!groupId) {
@@ -1139,17 +1483,45 @@ function App() {
     });
 
     try {
+      const major = profilePreferences.major.trim();
+      const interests = profilePreferences.interests.trim();
+      const profilePhotoUrl = profilePreferences.profilePhotoUrl.trim();
+      const visibility = profilePreferences.privacy === "Public"
+        ? "PUBLIC"
+        : profilePreferences.privacy === "Private"
+          ? "PRIVATE"
+          : "CAMPUS_ONLY";
+
       const data = await request("/api/v1/users/profile", {
         method: "PUT",
         body: {
           username: backendProfileForm.username.trim(),
+          major: major ? major : null,
+          interests: interests ? interests : null,
+          profilePhotoUrl: profilePhotoUrl ? profilePhotoUrl : null,
+          visibility,
         },
       });
       const nextUser = {
         ...currentUser,
         username: data?.username || backendProfileForm.username.trim(),
+        major: data?.major ?? null,
+        interests: data?.interests ?? null,
+        profilePhotoUrl: data?.profilePhotoUrl ?? null,
+        visibility: data?.visibility ?? null,
       };
       updateStoredUser(nextUser);
+      setProfilePreferences((current) => ({
+        ...current,
+        major: nextUser.major || "",
+        interests: nextUser.interests || "",
+        profilePhotoUrl: nextUser.profilePhotoUrl || "",
+        privacy: nextUser.visibility === "PUBLIC"
+          ? "Public"
+          : nextUser.visibility === "PRIVATE"
+            ? "Private"
+            : "Campus only",
+      }));
       setWorkspaceNotice({
         type: "success",
         message: "Profile and preferences updated.",
@@ -1159,6 +1531,97 @@ function App() {
         type: "error",
         message: error.message || "Profile update failed.",
       });
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (profilePhotoPreviewUrl) {
+        URL.revokeObjectURL(profilePhotoPreviewUrl);
+      }
+    };
+  }, [profilePhotoPreviewUrl]);
+
+  const handleProfilePhotoSelected = (event) => {
+    const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+
+    if (profilePhotoPreviewUrl) {
+      URL.revokeObjectURL(profilePhotoPreviewUrl);
+    }
+
+    setProfilePhotoFile(file);
+    setProfilePhotoUploadStatus("");
+
+    if (!file) {
+      setProfilePhotoPreviewUrl("");
+      return;
+    }
+
+    setProfilePhotoPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleUploadProfilePhoto = async () => {
+    if (!profilePhotoFile) {
+      setProfilePhotoUploadStatus("Choose an image first.");
+      return;
+    }
+
+    setLoadingAction("profile-photo");
+    setProfilePhotoUploadStatus("Uploading...");
+
+    try {
+      const token = window.localStorage.getItem("campusflowToken");
+      if (!token) {
+        throw new Error("You are not logged in.");
+      }
+
+      const formData = new FormData();
+      formData.append("file", profilePhotoFile);
+
+      const response = await fetch(`${API_BASE_URL}/api/v1/users/profile/photo`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const rawText = await response.text();
+      let data = null;
+      if (rawText) {
+        try {
+          data = JSON.parse(rawText);
+        } catch (_error) {
+          data = rawText;
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message
+            || data?.error
+            || (typeof data === "string" ? data : "")
+            || `Upload failed with status ${response.status}.`,
+        );
+      }
+
+      const nextUser = {
+        ...currentUser,
+        profilePhotoUrl: data?.profilePhotoUrl ?? null,
+      };
+      updateStoredUser(nextUser);
+      setProfilePreferences((current) => ({
+        ...current,
+        profilePhotoUrl: nextUser.profilePhotoUrl || "",
+      }));
+
+      setProfilePhotoUploadStatus("Uploaded.");
+      setProfilePhotoFile(null);
+      setProfilePhotoPreviewUrl("");
+    } catch (error) {
+      setProfilePhotoUploadStatus(error.message || "Upload failed.");
     } finally {
       setLoadingAction(null);
     }
@@ -1417,23 +1880,82 @@ function App() {
   };
 
   const handleReportPost = (postId) => {
-    setPostInteractions((current) => {
-      const existing = current[postId] || {};
-      const nextReported = !existing.reported;
-      return {
+    if (!currentUser) {
+      return;
+    }
+
+    const existing = postInteractions[postId] || {};
+    const nextReported = !existing.reported;
+
+    setPostInteractions((current) => ({
+      ...current,
+      [postId]: {
+        ...(current[postId] || {}),
+        reported: nextReported,
+        reportedAt: nextReported ? new Date().toISOString() : null,
+      },
+    }));
+
+    if (!nextReported) {
+      return;
+    }
+
+    setWorkspaceNotice({
+      type: "loading",
+      message: "Reporting content...",
+    });
+
+    request("/api/v1/moderation/reports", {
+      method: "POST",
+      body: {
+        targetType: "POST",
+        targetId: String(postId),
+        reason: "USER_REPORT",
+        detail: "Reported from the feed UI.",
+      },
+    }).then(() => {
+      setWorkspaceNotice({
+        type: "success",
+        message: "Report submitted to moderators.",
+      });
+    }).catch((error) => {
+      setPostInteractions((current) => ({
         ...current,
         [postId]: {
-          ...existing,
-          reported: nextReported,
-          reportedAt: nextReported ? new Date().toISOString() : null,
+          ...(current[postId] || {}),
+          reported: false,
+          reportedAt: null,
         },
-      };
+      }));
+      setWorkspaceNotice({
+        type: "error",
+        message: error.message || "Could not submit the report.",
+      });
     });
   };
 
   const handleOpenChat = async (groupId) => {
     setSelectedGroupId(groupId);
     await loadMessages(groupId);
+    connectToGroupSocket(groupId);
+    setUnreadGroups((prev) => {
+      const next = new Set(prev);
+      next.delete(groupId);
+      return next;
+    });
+
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      messages.forEach((message) => {
+        if (!message?.id) {
+          return;
+        }
+        try {
+          socketRef.current.send(JSON.stringify({ type: "read", messageId: message.id }));
+        } catch (_e) {
+          // ignore
+        }
+      });
+    }
   };
 
   const handleSendMessage = async () => {
@@ -1463,6 +1985,101 @@ function App() {
         type: "error",
         message: error.message || "Could not send the message.",
       });
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (chatFilePreviewUrl) {
+        URL.revokeObjectURL(chatFilePreviewUrl);
+      }
+    };
+  }, [chatFilePreviewUrl]);
+
+  const handleChatFileSelected = (event) => {
+    const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+
+    if (chatFilePreviewUrl) {
+      URL.revokeObjectURL(chatFilePreviewUrl);
+    }
+
+    setChatFile(file);
+    setChatFileStatus("");
+
+    if (!file) {
+      setChatFilePreviewUrl("");
+      return;
+    }
+
+    if (file.type && file.type.startsWith("image/")) {
+      setChatFilePreviewUrl(URL.createObjectURL(file));
+    } else {
+      setChatFilePreviewUrl("");
+    }
+  };
+
+  const handleSendChatFile = async () => {
+    if (!selectedGroupId) {
+      return;
+    }
+    if (!chatFile) {
+      setChatFileStatus("Choose a file first.");
+      return;
+    }
+
+    setLoadingAction("message-file");
+    setChatFileStatus("Uploading...");
+
+    try {
+      const token = window.localStorage.getItem("campusflowToken");
+      if (!token) {
+        throw new Error("You are not logged in.");
+      }
+
+      const formData = new FormData();
+      formData.append("file", chatFile);
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/v1/study-groups/${selectedGroupId}/messages/file`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        },
+      );
+
+      const rawText = await response.text();
+      let data = null;
+      if (rawText) {
+        try {
+          data = JSON.parse(rawText);
+        } catch (_error) {
+          data = rawText;
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message
+            || data?.error
+            || (typeof data === "string" ? data : "")
+            || `Upload failed with status ${response.status}.`,
+        );
+      }
+
+      setChatFileStatus("Sent.");
+      setChatFile(null);
+      if (chatFilePreviewUrl) {
+        URL.revokeObjectURL(chatFilePreviewUrl);
+      }
+      setChatFilePreviewUrl("");
+      await loadMessages(selectedGroupId);
+    } catch (error) {
+      setChatFileStatus(error.message || "Could not send the file.");
     } finally {
       setLoadingAction(null);
     }
@@ -2444,6 +3061,38 @@ function App() {
           )}
         </div>
       </article>
+
+      {(currentUser?.role === "MODERATOR" || currentUser?.role === "ADMIN") ? (
+        <article className="data-panel">
+          <div className="panel-header">
+            <h3>Moderation audit log</h3>
+            <button
+              type="button"
+              className="secondary inline-button"
+              onClick={loadAuditLog}
+            >
+              Refresh
+            </button>
+          </div>
+          <p className="chat-copy">{auditLogStatus}</p>
+          <div className="list-stack">
+            {auditLogEntries.length === 0 ? (
+              <p className="empty-copy">No audit entries yet.</p>
+            ) : (
+              auditLogEntries.map((entry) => (
+                <div className="list-card" key={entry.id}>
+                  <strong>{entry.action}</strong>
+                  <p>{entry.targetType} #{entry.targetId}</p>
+                  {entry.detail ? <p className="muted">{entry.detail}</p> : null}
+                  <small>
+                    Actor #{entry.actorUserId} • {formatDateTime(entry.createdAt)}
+                  </small>
+                </div>
+              ))
+            )}
+          </div>
+        </article>
+      ) : null}
     </div>
   );
 
@@ -2674,7 +3323,12 @@ function App() {
                 return (
                   <div className="list-card" key={group.id}>
                     <div className="list-topline">
-                      <strong>{group.name}</strong>
+                      <strong>
+                        {group.name}
+                        {unreadGroups.has(group.id) && (
+                          <span className="unread-dot" />
+                        )}
+                      </strong>
                       <span>{group.course}</span>
                     </div>
                     <p>{group.topic}</p>
@@ -2750,6 +3404,21 @@ function App() {
             <span className="panel-chip">{selectedGroup ? selectedGroup.name : "Pick a group"}</span>
           </div>
           <p className="chat-copy">{messageStatus}</p>
+          {selectedGroup && typingByGroup[selectedGroupId] ? (
+            <p className="chat-copy muted">
+              {Object.entries(typingByGroup[selectedGroupId])
+                .filter(([userId]) => String(userId) !== String(currentUser?.userId))
+                .map(([, name]) => name)
+                .filter(Boolean)
+                .slice(0, 3)
+                .join(", ")}
+              {Object.keys(typingByGroup[selectedGroupId] || {}).some(
+                (userId) => String(userId) !== String(currentUser?.userId),
+              )
+                ? " typing..."
+                : ""}
+            </p>
+          ) : null}
 
           {selectedGroup ? (
             <>
@@ -2757,13 +3426,48 @@ function App() {
                 {messages.length === 0 ? (
                   <p className="empty-copy">No messages yet in this group.</p>
                 ) : (
-                  messages.map((message) => (
-                    <div className="message-card" key={message.id}>
-                      <strong>{message.senderUsername}</strong>
-                      <p>{message.content}</p>
-                      <small>{formatDateTime(message.sentAt)}</small>
-                    </div>
-                  ))
+                  messages.map((message) => {
+                    const attachmentUrl = message.attachmentUrl
+                      ? (message.attachmentUrl.startsWith("/")
+                        ? `${API_BASE_URL}${message.attachmentUrl}`
+                        : message.attachmentUrl)
+                      : "";
+
+                    return (
+                      <div className="message-card" key={message.id}>
+                        <strong>{message.senderUsername}</strong>
+                        {message.type === "FILE" && attachmentUrl ? (
+                          <div style={{ marginTop: 6 }}>
+                            <a
+                              className="ghost-link"
+                              href={attachmentUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {message.attachmentName || message.content || "Download file"}
+                            </a>
+                            {message.attachmentContentType && message.attachmentContentType.startsWith("image/") ? (
+                              <div style={{ marginTop: 8 }}>
+                                <img
+                                  alt={message.attachmentName || "Shared file"}
+                                  src={attachmentUrl}
+                                  style={{ width: "100%", maxWidth: 320, borderRadius: 12 }}
+                                />
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <p>{message.content}</p>
+                        )}
+                        <small>{formatDateTime(message.sentAt)}</small>
+                        {(readReceiptsByMessageId[message.id] || []).length > 0 ? (
+                          <small className="muted">
+                            Seen by {(readReceiptsByMessageId[message.id] || []).length}
+                          </small>
+                        ) : null}
+                      </div>
+                    );
+                  })
                 )}
               </div>
 
@@ -2773,7 +3477,7 @@ function App() {
                   name="content"
                   rows="3"
                   value={messageForm.content}
-                  onChange={handleFormChange(setMessageForm)}
+                  onChange={handleMessageInputChange}
                 />
               </label>
               <button
@@ -2782,6 +3486,31 @@ function App() {
                 disabled={loadingAction === "message"}
               >
                 {loadingAction === "message" ? "Sending..." : "Send message"}
+              </button>
+
+              <label className="field" style={{ marginTop: 12 }}>
+                <span>Share a file</span>
+                <input type="file" onChange={handleChatFileSelected} />
+                {chatFilePreviewUrl ? (
+                  <img
+                    alt="Selected file preview"
+                    src={chatFilePreviewUrl}
+                    style={{ marginTop: 10, width: "100%", maxWidth: 260, borderRadius: 12 }}
+                  />
+                ) : null}
+                {chatFileStatus ? (
+                  <div className="muted" style={{ marginTop: 6 }}>
+                    {chatFileStatus}
+                  </div>
+                ) : null}
+              </label>
+              <button
+                type="button"
+                className="secondary"
+                onClick={handleSendChatFile}
+                disabled={loadingAction === "message-file"}
+              >
+                {loadingAction === "message-file" ? "Uploading..." : "Send file"}
               </button>
 
               <div className="resource-panel">
@@ -2857,6 +3586,42 @@ function App() {
 
       <article className="data-panel">
         <div className="panel-header">
+          <h3>Account notifications</h3>
+          <div className="action-inline">
+            <button
+              type="button"
+              className="secondary inline-button"
+              onClick={loadServerNotifications}
+            >
+              Refresh
+            </button>
+            <button
+              type="button"
+              className="secondary inline-button"
+              onClick={markAllServerNotificationsRead}
+            >
+              Mark all read
+            </button>
+          </div>
+        </div>
+        <p className="chat-copy">{serverNotificationsStatus}</p>
+        <div className="list-stack">
+          {serverNotifications.length === 0 ? (
+            <p className="empty-copy">No saved notifications yet.</p>
+          ) : (
+            serverNotifications.map((item) => (
+              <div className={`list-card tone-${item.tone || "info"}`} key={item.id}>
+                <strong>{item.title}</strong>
+                <p>{item.detail}</p>
+                <small>{formatDateTime(item.createdAt)}</small>
+              </div>
+            ))
+          )}
+        </div>
+      </article>
+
+      <article className="data-panel">
+        <div className="panel-header">
           <h3>Notification center</h3>
           <span className="panel-chip">
             {profilePreferences.notificationsEnabled ? "Enabled" : "Muted"}
@@ -2876,6 +3641,66 @@ function App() {
           )}
         </div>
       </article>
+
+      {(currentUser?.role === "MODERATOR" || currentUser?.role === "ADMIN") ? (
+        <article className="data-panel">
+          <div className="panel-header">
+            <h3>Moderation queue</h3>
+            <button
+              type="button"
+              className="secondary inline-button"
+              onClick={loadModerationQueue}
+            >
+              Refresh
+            </button>
+          </div>
+          <p className="chat-copy">{moderationQueueStatus}</p>
+          <div className="list-stack">
+            {moderationQueueEntries.length === 0 ? (
+              <p className="empty-copy">No reports in queue.</p>
+            ) : (
+              moderationQueueEntries.map((entry) => (
+                <div className="list-card" key={entry.id}>
+                  <strong>{entry.action}</strong>
+                  <p>{entry.targetType} #{entry.targetId}</p>
+                  {entry.detail ? <p className="muted">{entry.detail}</p> : null}
+                  <small>Actor #{entry.actorUserId} • {formatDateTime(entry.createdAt)}</small>
+                </div>
+              ))
+            )}
+          </div>
+        </article>
+      ) : null}
+
+      {(currentUser?.role === "MODERATOR" || currentUser?.role === "ADMIN") ? (
+        <article className="data-panel">
+          <div className="panel-header">
+            <h3>Audit log</h3>
+            <button
+              type="button"
+              className="secondary inline-button"
+              onClick={loadAuditLog}
+            >
+              Refresh
+            </button>
+          </div>
+          <p className="chat-copy">{auditLogStatus}</p>
+          <div className="list-stack">
+            {auditLogEntries.length === 0 ? (
+              <p className="empty-copy">No audit entries yet.</p>
+            ) : (
+              auditLogEntries.map((entry) => (
+                <div className="list-card" key={entry.id}>
+                  <strong>{entry.action}</strong>
+                  <p>{entry.targetType} #{entry.targetId}</p>
+                  {entry.detail ? <p className="muted">{entry.detail}</p> : null}
+                  <small>Actor #{entry.actorUserId} • {formatDateTime(entry.createdAt)}</small>
+                </div>
+              ))
+            )}
+          </div>
+        </article>
+      ) : null}
     </div>
   );
 
@@ -2896,6 +3721,21 @@ function App() {
             <h3>Profile</h3>
             <span className="panel-chip">Stored with your account</span>
           </div>
+
+          {profileCompletenessStatus ? (
+            <p className="chat-copy">{profileCompletenessStatus}</p>
+          ) : null}
+          {profileCompleteness ? (
+            <div className="status-banner status-idle">
+              Profile completeness: {profileCompleteness.percent}%
+              {Array.isArray(profileCompleteness.missingFields) && profileCompleteness.missingFields.length > 0 ? (
+                <span className="muted">
+                  {" "}
+                  (missing: {profileCompleteness.missingFields.join(", ")})
+                </span>
+              ) : null}
+            </div>
+          ) : null}
 
           <label className="field">
             <span>Display name</span>
@@ -2924,6 +3764,40 @@ function App() {
               onChange={handleFormChange(setProfilePreferences)}
             />
           </label>
+          <label className="field">
+            <span>Profile photo</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleProfilePhotoSelected}
+            />
+            <div className="muted" style={{ marginTop: 6 }}>
+              Uploads are stored locally on the server.
+            </div>
+          </label>
+          {profilePhotoUploadStatus ? (
+            <div className="muted" style={{ marginBottom: 10 }}>
+              {profilePhotoUploadStatus}
+            </div>
+          ) : null}
+          <button
+            type="button"
+            className="secondary"
+            onClick={handleUploadProfilePhoto}
+            disabled={loadingAction === "profile-photo"}
+          >
+            {loadingAction === "profile-photo" ? "Uploading..." : "Upload photo"}
+          </button>
+          {profilePhotoPreviewUrl || profilePreferences.profilePhotoUrl ? (
+            <div className="auth-helper-card">
+              <strong>Preview</strong>
+              <img
+                alt="Profile"
+                src={profilePhotoPreviewUrl || profilePreferences.profilePhotoUrl}
+                style={{ width: 80, height: 80, borderRadius: 16, objectFit: "cover" }}
+              />
+            </div>
+          ) : null}
 
           <button
             type="button"
@@ -2941,15 +3815,15 @@ function App() {
           </div>
 
           <label className="field">
-            <span>Privacy level</span>
+            <span>Profile visibility</span>
             <select
               name="privacy"
               value={profilePreferences.privacy}
               onChange={handleFormChange(setProfilePreferences)}
             >
+              <option value="Public">Public</option>
               <option value="Campus only">Campus only</option>
-              <option value="Study groups only">Study groups only</option>
-              <option value="Visible to moderators">Visible to moderators</option>
+              <option value="Private">Private</option>
             </select>
           </label>
 
@@ -3072,6 +3946,27 @@ function App() {
           </div>
         </div>
       </article>
+
+      {currentUser ? (
+        <article className="data-panel">
+          <div className="panel-header">
+            <h3>Web push notifications</h3>
+            <span className="panel-chip">Browser</span>
+          </div>
+          <p className="card-copy">
+            Enable browser notifications for RSVP confirmations, join request updates, and group messages.
+          </p>
+          {pushStatus ? <p className="chat-copy">{pushStatus}</p> : null}
+          <div className="action-inline">
+            <button type="button" className="secondary inline-button" onClick={enableWebPush}>
+              Enable web push
+            </button>
+            <button type="button" className="secondary inline-button" onClick={sendTestWebPush}>
+              Send test push
+            </button>
+          </div>
+        </article>
+      ) : null}
     </div>
   );
 

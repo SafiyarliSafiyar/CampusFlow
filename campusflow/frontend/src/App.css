@@ -1387,3 +1387,13 @@ button.puzzle-cell:hover:not(:disabled) {
     font-size: 1.8rem;
   }
 }
+
+.unread-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #3b82f6;
+  margin-left: 8px;
+  vertical-align: middle;
+}
