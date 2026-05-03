@@ -1,6 +1,7 @@
 package com.campusflow.infrastructure.persistence.postgres.user;
 
 import com.campusflow.domain.user.model.User;
+import com.campusflow.domain.user.model.ProfileVisibility;
 import com.campusflow.domain.user.model.UserRole;
 import com.campusflow.domain.user.model.VerificationStatus;
 import jakarta.persistence.Column;
@@ -32,6 +33,19 @@ public class UserJpaEntity {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column
+    private String major;
+
+    @Column(columnDefinition = "TEXT")
+    private String interests;
+
+    @Column(name = "profile_photo_url")
+    private String profilePhotoUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ProfileVisibility visibility = ProfileVisibility.CAMPUS_ONLY;
+
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
@@ -51,6 +65,10 @@ public class UserJpaEntity {
                 .id(id)
                 .username(username)
                 .email(email)
+                .major(major)
+                .interests(interests)
+                .profilePhotoUrl(profilePhotoUrl)
+                .visibility(visibility)
                 .passwordHash(passwordHash)
                 .role(role)
                 .verificationStatus(verificationStatus)
@@ -63,6 +81,10 @@ public class UserJpaEntity {
         entity.setId(user.getId());
         entity.setUsername(user.getUsername());
         entity.setEmail(user.getEmail());
+        entity.setMajor(user.getMajor());
+        entity.setInterests(user.getInterests());
+        entity.setProfilePhotoUrl(user.getProfilePhotoUrl());
+        entity.setVisibility(user.getVisibility());
         entity.setPasswordHash(user.getPasswordHash());
         entity.setRole(user.getRole());
         entity.setVerificationStatus(user.getVerificationStatus());

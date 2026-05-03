@@ -1,0 +1,16 @@
+# Gradle local cache (workspace-specific)
+campusflow/.gradle-home/
+
+# Node / React
+**/node_modules/
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+
+# Build outputs
+campusflow/build/
+campusflow/frontend/build/
+
+# OS/editor
+.DS_Store
+.vscode/

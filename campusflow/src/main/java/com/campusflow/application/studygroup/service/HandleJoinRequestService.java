@@ -10,12 +10,18 @@ import com.campusflow.domain.studygroup.model.JoinRequest;
 import com.campusflow.domain.studygroup.model.JoinRequestStatus;
 import com.campusflow.domain.studygroup.model.StudyGroup;
 import com.campusflow.domain.studygroup.port.StudyGroupRepositoryPort;
+import com.campusflow.application.notification.usecase.NotificationOrchestratorUseCase;
 
 public class HandleJoinRequestService implements HandleJoinRequestUseCase {
     private final StudyGroupRepositoryPort studyGroupRepositoryPort;
+    private final NotificationOrchestratorUseCase notificationOrchestratorUseCase;
 
-    public HandleJoinRequestService(StudyGroupRepositoryPort studyGroupRepositoryPort) {
+    public HandleJoinRequestService(
+            StudyGroupRepositoryPort studyGroupRepositoryPort,
+            NotificationOrchestratorUseCase notificationOrchestratorUseCase
+    ) {
         this.studyGroupRepositoryPort = studyGroupRepositoryPort;
+        this.notificationOrchestratorUseCase = notificationOrchestratorUseCase;
     }
 
     @Override
@@ -53,6 +59,7 @@ public class HandleJoinRequestService implements HandleJoinRequestUseCase {
                 .build();
         studyGroupRepositoryPort.save(updatedGroup);
 
+        notificationOrchestratorUseCase.notifyJoinRequestDecision(request.getUserId(), group.getId(), true);
         return JoinRequestResultMapper.toResult(savedRequest);
     }
 
@@ -73,6 +80,7 @@ public class HandleJoinRequestService implements HandleJoinRequestUseCase {
                 .requestedAt(request.getRequestedAt())
                 .build();
         JoinRequest savedRequest = studyGroupRepositoryPort.saveJoinRequest(updatedRequest);
+        notificationOrchestratorUseCase.notifyJoinRequestDecision(request.getUserId(), group.getId(), false);
         return JoinRequestResultMapper.toResult(savedRequest);
     }
 

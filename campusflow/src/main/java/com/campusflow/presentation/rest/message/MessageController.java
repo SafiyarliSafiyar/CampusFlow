@@ -5,9 +5,12 @@ import com.campusflow.application.message.dto.MessageResult;
 import com.campusflow.application.message.dto.SendMessageInput;
 import com.campusflow.application.message.usecase.GetMessagesUseCase;
 import com.campusflow.application.message.usecase.SendMessageUseCase;
+import com.campusflow.application.message.usecase.SendFileMessageUseCase;
 import jakarta.validation.Valid;
+import java.io.IOException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -20,12 +23,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/study-groups/{groupId}/messages")
 @RequiredArgsConstructor
 public class MessageController {
     private final SendMessageUseCase sendMessageUseCase;
+    private final SendFileMessageUseCase sendFileMessageUseCase;
     private final GetMessagesUseCase getMessagesUseCase;
 
     @PostMapping
@@ -38,6 +44,17 @@ public class MessageController {
         MessageResult result = sendMessageUseCase.send(
                 new SendMessageInput(groupId, userId, username, request.getContent())
         );
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(result));
+    }
+
+    @PostMapping(value = "/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<MessageResponse> sendFile(
+            @PathVariable Long groupId,
+            @RequestPart("file") MultipartFile file
+    ) throws IOException {
+        Long userId = extractUserId();
+        String username = extractUsername();
+        MessageResult result = sendFileMessageUseCase.sendFile(groupId, userId, username, file);
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(result));
     }
 
@@ -89,7 +106,12 @@ public class MessageController {
                 result.getStudyGroupId(),
                 result.getSenderId(),
                 result.getSenderUsername(),
+                result.getType(),
                 result.getContent(),
+                result.getAttachmentUrl(),
+                result.getAttachmentName(),
+                result.getAttachmentContentType(),
+                result.getAttachmentSizeBytes(),
                 result.getSentAt()
         );
     }

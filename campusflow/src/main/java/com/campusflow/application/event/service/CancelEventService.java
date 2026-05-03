@@ -24,6 +24,8 @@ public class CancelEventService implements CancelEventUseCase {
                 .description(existing.getDescription())
                 .eventDate(existing.getEventDate())
                 .location(existing.getLocation())
+                .latitude(existing.getLatitude())
+                .longitude(existing.getLongitude())
                 .capacity(existing.getCapacity())
                 .rsvpCount(existing.getRsvpCount())
                 .organizerId(existing.getOrganizerId())

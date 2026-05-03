@@ -25,6 +25,8 @@ public class UpdateEventService implements UpdateEventUseCase {
                 .description(input.getDescription())
                 .eventDate(input.getEventDate())
                 .location(input.getLocation())
+                .latitude(input.getLatitude() == null ? existing.getLatitude() : input.getLatitude())
+                .longitude(input.getLongitude() == null ? existing.getLongitude() : input.getLongitude())
                 .capacity(input.getCapacity())
                 .rsvpCount(existing.getRsvpCount())
                 .organizerId(existing.getOrganizerId())

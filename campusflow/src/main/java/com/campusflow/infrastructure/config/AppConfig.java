@@ -11,8 +11,10 @@ import com.campusflow.application.event.usecase.GetEventsUseCase;
 import com.campusflow.application.event.usecase.RsvpEventUseCase;
 import com.campusflow.application.event.usecase.UpdateEventUseCase;
 import com.campusflow.application.message.service.GetMessagesService;
+import com.campusflow.application.message.service.SendFileMessageService;
 import com.campusflow.application.message.service.SendMessageService;
 import com.campusflow.application.message.usecase.GetMessagesUseCase;
+import com.campusflow.application.message.usecase.SendFileMessageUseCase;
 import com.campusflow.application.message.usecase.SendMessageUseCase;
 import com.campusflow.application.post.service.CreatePostService;
 import com.campusflow.application.post.service.DeletePostService;
@@ -40,6 +42,30 @@ import com.campusflow.application.user.service.ResetPasswordService;
 import com.campusflow.application.user.service.SendOtpService;
 import com.campusflow.application.user.service.UpdateProfileService;
 import com.campusflow.application.user.service.VerifyOtpService;
+import com.campusflow.application.user.service.GetProfileCompletenessService;
+import com.campusflow.application.user.usecase.GetProfileCompletenessUseCase;
+import com.campusflow.application.audit.service.GetAuditLogService;
+import com.campusflow.application.audit.service.GetModerationQueueService;
+import com.campusflow.application.audit.service.ReportContentService;
+import com.campusflow.application.audit.usecase.GetAuditLogUseCase;
+import com.campusflow.application.audit.usecase.GetModerationQueueUseCase;
+import com.campusflow.application.audit.usecase.ReportContentUseCase;
+import com.campusflow.domain.audit.port.AuditLogRepositoryPort;
+import com.campusflow.application.notification.service.GetNotificationsService;
+import com.campusflow.application.notification.service.MarkNotificationsReadService;
+import com.campusflow.application.notification.service.NotificationOrchestratorService;
+import com.campusflow.application.notification.usecase.GetNotificationsUseCase;
+import com.campusflow.application.notification.usecase.MarkNotificationsReadUseCase;
+import com.campusflow.application.notification.usecase.NotificationOrchestratorUseCase;
+import com.campusflow.domain.notification.port.NotificationRepositoryPort;
+import com.campusflow.application.push.service.RegisterWebPushSubscriptionService;
+import com.campusflow.application.push.service.WebPushService;
+import com.campusflow.application.push.usecase.RegisterWebPushSubscriptionUseCase;
+import com.campusflow.application.push.usecase.SendTestWebPushUseCase;
+import com.campusflow.domain.user.port.PushTokenRepositoryPort;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
+import com.campusflow.infrastructure.storage.LocalUploadsStorage;
 import com.campusflow.application.user.usecase.AssignRoleUseCase;
 import com.campusflow.application.user.usecase.LoginUserUseCase;
 import com.campusflow.application.user.usecase.RegisterUserUseCase;
@@ -49,6 +75,7 @@ import com.campusflow.application.user.usecase.SendOtpUseCase;
 import com.campusflow.application.user.usecase.UpdateProfileUseCase;
 import com.campusflow.application.user.usecase.VerifyOtpUseCase;
 import com.campusflow.domain.event.port.EventRepositoryPort;
+import com.campusflow.domain.message.port.MessagePushPort;
 import com.campusflow.domain.message.port.MessageRepositoryPort;
 import com.campusflow.domain.post.port.PostRepositoryPort;
 import com.campusflow.domain.studygroup.port.StudyGroupRepositoryPort;
@@ -67,6 +94,14 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 public class AppConfig {
+    @Value("${campusflow.webpush.subject:mailto:admin@localhost}")
+    private String webPushSubject;
+
+    @Value("${campusflow.webpush.public-key:}")
+    private String webPushPublicKey;
+
+    @Value("${campusflow.webpush.private-key:}")
+    private String webPushPrivateKey;
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
@@ -119,6 +154,11 @@ public class AppConfig {
     @Bean
     public AssignRoleUseCase assignRoleUseCase(UserRepositoryPort userRepositoryPort) {
         return new AssignRoleService(userRepositoryPort);
+    }
+
+    @Bean
+    public GetProfileCompletenessUseCase getProfileCompletenessUseCase(UserRepositoryPort userRepositoryPort) {
+        return new GetProfileCompletenessService(userRepositoryPort);
     }
 
     @Bean
@@ -176,8 +216,13 @@ public class AppConfig {
     }
 
     @Bean
-    public RsvpEventUseCase rsvpEventUseCase(EventRepositoryPort eventRepositoryPort) {
-        return new RsvpEventService(eventRepositoryPort);
+    public RsvpEventUseCase rsvpEventUseCase(
+            EventRepositoryPort eventRepositoryPort,
+            UserRepositoryPort userRepositoryPort,
+            EmailServicePort emailServicePort,
+            com.campusflow.application.notification.usecase.NotificationOrchestratorUseCase notificationOrchestratorUseCase
+    ) {
+        return new RsvpEventService(eventRepositoryPort, userRepositoryPort, emailServicePort, notificationOrchestratorUseCase);
     }
 
     @Bean
@@ -196,8 +241,11 @@ public class AppConfig {
     }
 
     @Bean
-    public HandleJoinRequestUseCase handleJoinRequestUseCase(StudyGroupRepositoryPort studyGroupRepositoryPort) {
-        return new HandleJoinRequestService(studyGroupRepositoryPort);
+    public HandleJoinRequestUseCase handleJoinRequestUseCase(
+            StudyGroupRepositoryPort studyGroupRepositoryPort,
+            com.campusflow.application.notification.usecase.NotificationOrchestratorUseCase notificationOrchestratorUseCase
+    ) {
+        return new HandleJoinRequestService(studyGroupRepositoryPort, notificationOrchestratorUseCase);
     }
 
     @Bean
@@ -213,9 +261,28 @@ public class AppConfig {
     @Bean
     public SendMessageUseCase sendMessageUseCase(
             MessageRepositoryPort messageRepositoryPort,
-            StudyGroupRepositoryPort studyGroupRepositoryPort
+            StudyGroupRepositoryPort studyGroupRepositoryPort,
+            MessagePushPort messagePushPort,
+            com.campusflow.application.notification.usecase.NotificationOrchestratorUseCase notificationOrchestratorUseCase
     ) {
-        return new SendMessageService(messageRepositoryPort, studyGroupRepositoryPort);
+        return new SendMessageService(messageRepositoryPort, studyGroupRepositoryPort, messagePushPort, notificationOrchestratorUseCase);
+    }
+
+    @Bean
+    public SendFileMessageUseCase sendFileMessageUseCase(
+            MessageRepositoryPort messageRepositoryPort,
+            StudyGroupRepositoryPort studyGroupRepositoryPort,
+            MessagePushPort messagePushPort,
+            com.campusflow.application.notification.usecase.NotificationOrchestratorUseCase notificationOrchestratorUseCase,
+            LocalUploadsStorage localUploadsStorage
+    ) {
+        return new SendFileMessageService(
+                messageRepositoryPort,
+                studyGroupRepositoryPort,
+                messagePushPort,
+                notificationOrchestratorUseCase,
+                localUploadsStorage
+        );
     }
 
     @Bean
@@ -239,5 +306,53 @@ public class AppConfig {
     @Bean
     public GetFeedUseCase getFeedUseCase(PostRepositoryPort postRepositoryPort) {
         return new GetFeedService(postRepositoryPort);
+    }
+
+    @Bean
+    public ReportContentUseCase reportContentUseCase(AuditLogRepositoryPort auditLogRepositoryPort) {
+        return new ReportContentService(auditLogRepositoryPort);
+    }
+
+    @Bean
+    public GetAuditLogUseCase getAuditLogUseCase(AuditLogRepositoryPort auditLogRepositoryPort) {
+        return new GetAuditLogService(auditLogRepositoryPort);
+    }
+
+    @Bean
+    public GetModerationQueueUseCase getModerationQueueUseCase(AuditLogRepositoryPort auditLogRepositoryPort) {
+        return new GetModerationQueueService(auditLogRepositoryPort);
+    }
+
+    @Bean
+    public NotificationOrchestratorUseCase notificationOrchestratorUseCase(
+            NotificationRepositoryPort notificationRepositoryPort
+    ) {
+        return new NotificationOrchestratorService(notificationRepositoryPort);
+    }
+
+    @Bean
+    public GetNotificationsUseCase getNotificationsUseCase(NotificationRepositoryPort notificationRepositoryPort) {
+        return new GetNotificationsService(notificationRepositoryPort);
+    }
+
+    @Bean
+    public MarkNotificationsReadUseCase markNotificationsReadUseCase(NotificationRepositoryPort notificationRepositoryPort) {
+        return new MarkNotificationsReadService(notificationRepositoryPort);
+    }
+
+    @Bean
+    public RegisterWebPushSubscriptionUseCase registerWebPushSubscriptionUseCase(
+            PushTokenRepositoryPort pushTokenRepositoryPort,
+            ObjectMapper objectMapper
+    ) {
+        return new RegisterWebPushSubscriptionService(pushTokenRepositoryPort, objectMapper);
+    }
+
+    @Bean
+    public SendTestWebPushUseCase sendTestWebPushUseCase(
+            PushTokenRepositoryPort pushTokenRepositoryPort,
+            ObjectMapper objectMapper
+    ) {
+        return new WebPushService(pushTokenRepositoryPort, objectMapper, webPushSubject, webPushPublicKey, webPushPrivateKey);
     }
 }

@@ -10,6 +10,8 @@ public class EventResponse {
     String description;
     LocalDateTime eventDate;
     String location;
+    Double latitude;
+    Double longitude;
     int capacity;
     int rsvpCount;
     Long organizerId;

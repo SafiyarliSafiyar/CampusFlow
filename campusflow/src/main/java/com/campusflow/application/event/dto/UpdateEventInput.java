@@ -9,5 +9,7 @@ public class UpdateEventInput {
     String description;
     LocalDateTime eventDate;
     String location;
+    Double latitude;
+    Double longitude;
     int capacity;
 }

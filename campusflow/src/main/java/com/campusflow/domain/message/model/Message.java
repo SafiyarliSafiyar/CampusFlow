@@ -13,6 +13,11 @@ public class Message {
     private final Long studyGroupId;
     private final Long senderId;
     private final String senderUsername;
+    private final MessageType type;
     private final String content;
+    private final String attachmentUrl;
+    private final String attachmentName;
+    private final String attachmentContentType;
+    private final Long attachmentSizeBytes;
     private final LocalDateTime sentAt;
 }

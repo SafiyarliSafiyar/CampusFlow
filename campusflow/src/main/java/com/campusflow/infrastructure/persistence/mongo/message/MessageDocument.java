@@ -1,6 +1,7 @@
 package com.campusflow.infrastructure.persistence.mongo.message;
 
 import com.campusflow.domain.message.model.Message;
+import com.campusflow.domain.message.model.MessageType;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -18,7 +19,12 @@ public class MessageDocument {
     private Long studyGroupId;
     private Long senderId;
     private String senderUsername;
+    private MessageType type;
     private String content;
+    private String attachmentUrl;
+    private String attachmentName;
+    private String attachmentContentType;
+    private Long attachmentSizeBytes;
     private LocalDateTime sentAt;
 
     public Message toDomain() {
@@ -27,7 +33,12 @@ public class MessageDocument {
                 .studyGroupId(studyGroupId)
                 .senderId(senderId)
                 .senderUsername(senderUsername)
+                .type(type == null ? MessageType.TEXT : type)
                 .content(content)
+                .attachmentUrl(attachmentUrl)
+                .attachmentName(attachmentName)
+                .attachmentContentType(attachmentContentType)
+                .attachmentSizeBytes(attachmentSizeBytes)
                 .sentAt(sentAt)
                 .build();
     }
@@ -38,7 +49,12 @@ public class MessageDocument {
         document.setStudyGroupId(message.getStudyGroupId());
         document.setSenderId(message.getSenderId());
         document.setSenderUsername(message.getSenderUsername());
+        document.setType(message.getType() == null ? MessageType.TEXT : message.getType());
         document.setContent(message.getContent());
+        document.setAttachmentUrl(message.getAttachmentUrl());
+        document.setAttachmentName(message.getAttachmentName());
+        document.setAttachmentContentType(message.getAttachmentContentType());
+        document.setAttachmentSizeBytes(message.getAttachmentSizeBytes());
         document.setSentAt(message.getSentAt());
         return document;
     }
